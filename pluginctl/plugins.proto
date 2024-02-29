@@ -1,0 +1,27 @@
+syntax = "proto3";
+package pluginctl;
+option go_package = "github.com/benji-bou/SecPipeline/pluginctl";
+
+message RunInputConfig {
+  bytes config = 1;
+}
+
+message InputSchema {
+  bytes config = 1;
+}
+
+message DataStream {
+  bytes data = 1;
+}
+
+message Empty {}
+
+message Error {
+  string message = 1;
+}
+
+service SecPipelinePlugins {
+  rpc GetInputSchema(Empty) returns (InputSchema);
+  rpc Config(RunInputConfig)   returns (Empty);
+  rpc Run(stream DataStream)   returns (stream DataStream);
+}

@@ -6,6 +6,7 @@
 # https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
 #
 # Binaries for programs and plugins
+bin
 *.exe
 *.exe~
 *.dll
@@ -58,6 +59,7 @@ Temporary Items
 *.icloud
 
 ### VisualStudioCode ###
+*.code-workspace
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
