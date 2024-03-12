@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/benji-bou/SecPipeline/helper"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 )
 
@@ -115,23 +116,29 @@ func WithGRPCPlugin() PluginOption {
 }
 
 func (p Plugin) Serve() {
+	log := hclog.Default().Named(p.name)
+	log.SetLevel(hclog.Debug)
+
 	slog.Debug("start serving plugin", "names", p.name)
 	plugin.Serve(&plugin.ServeConfig{
 		HandshakeConfig: p.handshake,
 		Plugins:         plugin.PluginSet{"plugin": p.plugin},
 		GRPCServer:      plugin.DefaultGRPCServer,
+		Logger:          log,
 	})
 	slog.Debug("stop serving plugin", "name", p.name)
 }
 
 func (p *Plugin) Connect() (SecPipelinePluginable, error) {
-
+	log := hclog.Default().Named(p.name)
+	log.SetLevel(hclog.Debug)
 	p.client = plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig:  p.handshake,
 		Plugins:          plugin.PluginSet{"plugin": p.plugin},
 		Cmd:              p.cmd,
 		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
 		Managed:          true,
+		Logger:           log,
 	})
 	cp, err := p.client.Client()
 	if err != nil {

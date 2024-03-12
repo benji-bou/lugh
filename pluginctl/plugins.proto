@@ -12,6 +12,10 @@ message InputSchema {
 
 message DataStream {
   bytes data = 1;
+  string parentSrc = 2;
+  string id = 3;
+  bool isComplete = 4;
+  int64 totalLen = 5;
 }
 
 message Empty {}

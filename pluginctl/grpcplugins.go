@@ -25,8 +25,7 @@ type SecPipelineGRPCPlugin struct {
 
 func (p SecPipelineGRPCPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
 	RegisterSecPipelinePluginsServer(s, &GRPCServer{
-		Impl:   p.Impl,
-		broker: broker,
+		Impl: p.Impl,
 	})
 	return nil
 }
@@ -34,6 +33,5 @@ func (p SecPipelineGRPCPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Ser
 func (p SecPipelineGRPCPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
 	return &GRPCClient{
 		client: NewSecPipelinePluginsClient(c),
-		broker: broker,
 	}, nil
 }
