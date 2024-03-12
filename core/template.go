@@ -1,9 +1,11 @@
 package core
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/benji-bou/SecPipeline/pluginctl"
+	"github.com/benji-bou/chantools"
 	"github.com/benji-bou/tree"
 )
 
@@ -18,25 +20,26 @@ type Template struct {
 }
 
 func (t Template) Start() {
-	// currentNode := t.Pipeline
-	// var currentInputC <-chan []byte
-	// childOutputC := map[string]struct {
-	// 	outputC    <-chan []byte
-	// 	outputErrC <-chan error
-	// }{}
-	tree.Walker(t.Pipeline, func(currentNode SecNode) error {
-		// currentPlugin := currentNode.GetValue()
 
-		// //TODO: Stoquer l'outputC de newPipe (du plugin enfant) dans une map pour l'envoyer dans ces propres enfants plus tard
-		// //TODO: ICI nous NE devons PAS changer currentInputC car utilisé pour le prochain child du current Node
-		// tmpOuputC, errC := NewPipe(currentInputC, childPlugin).Pipe()
-		// childOutputC[childNode.GetID()] = struct {
-		// 	outputC    <-chan []byte
-		// 	outputErrC <-chan error
-		// }{
-		// 	outputC:    tmpOuputC,
-		// 	outputErrC: errC,
-		// }
+	parentOutputCIndex := map[string][]<-chan *pluginctl.DataStream{}
+	errorsOutputCIndex := map[string]<-chan error{}
+
+	tree.Walker(t.Pipeline, func(currentNode SecNode) error {
+		currentPlugin := currentNode.GetValue()
+		slog.Debug("current plugin", "plugin", currentPlugin)
+		parentOutputC := chantools.Merge(parentOutputCIndex[currentNode.GetID()]...)
+
+		currentOutputC, currentErrC := NewPipe(parentOutputC, currentPlugin).Pipe(context.Background())
+		errorsOutputCIndex[currentNode.GetID()] = currentErrC
+		for n := range currentNode.GetChilds() {
+			childInputC, exist := parentOutputCIndex[n]
+			if !exist {
+				childInputC = make([]<-chan *pluginctl.DataStream, 0, 1)
+			}
+			childInputC = append(childInputC, currentOutputC)
+			parentOutputCIndex[n] = childInputC
+		}
+
 		return nil
 	}, tree.LevelOrderSearch)
 
@@ -57,7 +60,7 @@ func NewMockTemplate() Template {
 }
 
 func newPlugin(name string) pluginctl.SecPipelinePluginable {
-	p, e := pluginctl.NewPlugin("martianProxy", pluginctl.WithPath("/Users/benjaminbouachour/Private/Projects/SecPipeline/bin/plugins")).Connect()
+	p, e := pluginctl.NewPlugin(name, pluginctl.WithPath("/Users/benjaminbouachour/Private/Projects/SecPipeline/bin/plugins")).Connect()
 	if e != nil {
 		slog.Error("failed to get new plugin", "function", "newPlugin", "error", e)
 	}

@@ -1,6 +1,7 @@
 package martian
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -10,7 +11,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
 	"time"
 
 	"github.com/benji-bou/SecPipeline/helper"
@@ -253,7 +253,7 @@ func (p *Proxy) configure(pattern string, handler http.Handler, corsEnabled bool
 	p.mux.Handle(pattern, handler)
 }
 
-func (p *Proxy) Run(enableApi bool) error {
+func (p *Proxy) Run(ctx context.Context, enableApi bool) error {
 
 	l, err := net.Listen("tcp", p.address)
 	if err != nil {
@@ -280,11 +280,7 @@ func (p *Proxy) Run(enableApi bool) error {
 
 	}
 	slog.Info("martian: starting proxy", "proxyAddr", l.Addr().String())
-	sigc := make(chan os.Signal)
-	signal.Notify(sigc, os.Interrupt, os.Kill)
-
-	<-sigc
-
+	<-ctx.Done()
 	slog.Info("martian: shutting down")
 	return nil
 

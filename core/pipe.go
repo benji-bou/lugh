@@ -1,20 +1,24 @@
 package core
 
-import "github.com/benji-bou/SecPipeline/pluginctl"
+import (
+	"context"
+
+	"github.com/benji-bou/SecPipeline/pluginctl"
+)
 
 type Pipeable interface {
-	Pipe() (<-chan []byte, <-chan error)
+	Pipe(ctx context.Context) (<-chan *pluginctl.DataStream, <-chan error)
 }
 
 type DefaultPipe struct {
-	from <-chan []byte
+	from <-chan *pluginctl.DataStream
 	to   pluginctl.SecPipelinePluginable
 }
 
-func NewPipe(from <-chan []byte, to pluginctl.SecPipelinePluginable) Pipeable {
+func NewPipe(from <-chan *pluginctl.DataStream, to pluginctl.SecPipelinePluginable) Pipeable {
 	return DefaultPipe{from: from, to: to}
 }
 
-func (dc DefaultPipe) Pipe() (<-chan []byte, <-chan error) {
-	return dc.to.Run(dc.from)
+func (dc DefaultPipe) Pipe(ctx context.Context) (<-chan *pluginctl.DataStream, <-chan error) {
+	return dc.to.Run(ctx, dc.from)
 }
