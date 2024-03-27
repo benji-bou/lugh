@@ -6,12 +6,11 @@ require (
 	github.com/benji-bou/chantools v0.0.2
 	github.com/benji-bou/gospider v0.0.1
 	github.com/benji-bou/tree v0.0.0-20240304144617-f32e3a4e5431
+	github.com/dominikbraun/graph v0.23.0
 	github.com/google/martian/v3 v3.3.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-hclog v1.6.2
 	github.com/hashicorp/go-plugin v1.6.0
-	github.com/k0kubun/pp v3.0.1+incompatible
-	github.com/k0kubun/pp/v3 v3.2.0
 	github.com/swaggest/jsonschema-go v0.3.66
 	github.com/urfave/cli/v2 v2.27.1
 	github.com/zricethezav/gitleaks/v8 v8.18.2
@@ -48,7 +47,6 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hashicorp/yamux v0.1.1 // indirect
 	github.com/jezek/xgb v1.1.1 // indirect
-	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/kennygrant/sanitize v1.2.4 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
