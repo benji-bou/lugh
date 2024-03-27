@@ -89,7 +89,7 @@ func (mp MartianPlugin) Run(ctx context.Context, _ <-chan *pluginctl.DataStream)
 
 func main() {
 
-	helper.SetLog(slog.LevelDebug)
+	helper.SetLog(slog.LevelError)
 	plugin := pluginctl.NewPlugin("martianProxy",
 		pluginctl.WithPluginImplementation(NewMartianPlugin()),
 	)

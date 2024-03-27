@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"log"
 	"log/slog"
+
 	"os"
 	"os/signal"
 
@@ -25,37 +27,24 @@ func main() {
 			},
 		},
 		Action: func(c *cli.Context) error {
+
 			helper.SetLog(slog.LevelInfo)
 			template := c.String("template")
 			slog.Info("", "template", template)
 			defer func() {
 				pluginctl.CleanupClients()
 			}()
-			tpl := core.NewMockTemplate()
-			tpl.Start()
-			// martian, err := pluginctl.NewPlugin("martianProxy", pluginctl.WithPath("/Users/benjaminbouachour/Private/Projects/SecPipeline/bin/plugins")).Connect()
-			// if err != nil {
-			// 	slog.Error("failed to load martian plugin", "function", "main", "file", "main.go", "error", err)
-			// 	return fmt.Errorf("failed to load martian plugin, %w", err)
-			// }
-			// leaks, err := pluginctl.NewPlugin("leaks", pluginctl.WithPath("/Users/benjaminbouachour/Private/Projects/SecPipeline/bin/plugins")).Connect()
-			// if err != nil {
-			// 	slog.Error("failed to load leaks plugin", "function", "main", "file", "main.go", "error", err)
-			// 	return fmt.Errorf("failed to load leaks plugin, %w", err)
-			// }
-			// mDataC, mErrC := martian.Run(nil)
+			tpl, err := core.NewFileTemplate("/Users/benjaminbouachour/Private/Projects/SecPipeline/templates/test.yml")
 
-			// lDataC, lErrC := core.NewPipe(mDataC, leaks).Pipe()
-			// aggrErrC := chantools.Merge(mErrC, lErrC)
+			if err != nil {
+				return err
+			}
+			tpl.Start(context.Background())
+
 			sigc := make(chan os.Signal, 1)
 			signal.Notify(sigc, os.Interrupt)
 			for {
 				select {
-				// case err := <-aggrErrC:
-				// 	slog.Error("received error from plugin", "function", "main", "error", err)
-				// 	return err
-				// case leak := <-lDataC:
-				// 	pp.Print(string(leak))
 				case <-sigc:
 					return nil
 				}
