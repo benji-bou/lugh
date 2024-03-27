@@ -63,5 +63,6 @@ func main() {
 	p := pluginctl.NewPlugin("leaks",
 		pluginctl.WithPluginImplementation(NewLeaksPlugin()),
 	)
+
 	p.Serve()
 }

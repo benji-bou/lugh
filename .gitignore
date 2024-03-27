@@ -79,3 +79,8 @@ Temporary Items
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,visualstudiocode,go
+
+templates/test.yml
+cmd/cli/*debug*
+cmd/cli/result.txt
+result.txt

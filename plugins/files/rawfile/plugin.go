@@ -27,7 +27,7 @@ func (mp RawFile) Config([]byte) error {
 	return nil
 }
 func (mp RawFile) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
-	f, err := os.OpenFile("result.txt", os.O_WRONLY, 0644)
+	f, err := os.OpenFile("result.txt", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, chantools.Once(fmt.Errorf("NewRawFile open file for  plugin failed, %w", err))
 	}
@@ -43,7 +43,7 @@ func (mp RawFile) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (
 
 func main() {
 	helper.SetLog(slog.LevelError)
-	plugin := pluginctl.NewPlugin("martianProxy",
+	plugin := pluginctl.NewPlugin("rawfile",
 		pluginctl.WithPluginImplementation(NewRawFile()),
 	)
 	plugin.Serve()
