@@ -128,19 +128,10 @@ func (st Stage) createPlugin(name string, path string) (pluginctl.SecPipelinePlu
 	if st.Pipe == nil || pipeCount == 0 {
 		return plugin, nil
 	}
-	pipes := make([]Pipeable, 0, pipeCount)
-	for _, pipeMapConfig := range st.Pipe {
-		for pipeName, pipeConfig := range pipeMapConfig {
-			pipeable, err := BuildPipe(pipeName, pipeConfig)
-			if err != nil {
-
-				slog.Error("failed to build pipe", "error", err)
-				return nil, fmt.Errorf("failed to build pipe %s for %s with label %s: %w", pipeName, st.Plugin, name, err)
-			}
-			pipes = append(pipes, pipeable)
-		}
+	pipe, err := st.buildPipes()
+	if err != nil {
+		return nil, err
 	}
-	pipe := NewChainedPipe(pipes...)
 	return NewSecPipePlugin(pipe, plugin), nil
 }
 
@@ -159,7 +150,24 @@ func (st Stage) GetSecVertex(name string) (SecVertex, error) {
 	return SecVertex{Name: name, plugin: plugin}, nil
 }
 
-func BuildPipe(pipeName string, config yaml.Node) (Pipeable, error) {
+func (st Stage) buildPipes(name string) (Pipeable, error) {
+	pipeCount := len(st.Pipe)
+	pipes := make([]Pipeable, 0, pipeCount)
+	for _, pipeMapConfig := range st.Pipe {
+		for pipeName, pipeConfig := range pipeMapConfig {
+			pipeable, err := st.buildPipe(pipeName, pipeConfig)
+			if err != nil {
+
+				slog.Error("failed to build pipe", "error", err)
+				return nil, fmt.Errorf("failed to build pipe %s for %s with label %s: %w", pipeName, st.Plugin, name, err)
+			}
+			pipes = append(pipes, pipeable)
+		}
+	}
+	return NewChainedPipe(pipes...), nil
+}
+
+func (st Stage) buildPipe(pipeName string, config yaml.Node) (Pipeable, error) {
 	switch pipeName {
 	case "goTemplate":
 		configGoTpl := GoTemplateConfig{}
