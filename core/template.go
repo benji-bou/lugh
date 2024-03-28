@@ -12,6 +12,7 @@ import (
 	"github.com/benji-bou/chantools"
 	"github.com/dominikbraun/graph"
 	"github.com/google/uuid"
+	"golang.org/x/exp/maps"
 	"gopkg.in/yaml.v3"
 )
 
@@ -73,13 +74,98 @@ func (t *Template) getTemplateGraph() (SecGraph, SecVertex, error) {
 	}, graph.Directed())
 	rootVertex := SecVertex{Name: uuid.NewString(), plugin: EmptySecPlugin{}}
 	g.AddVertex(rootVertex)
-	for stageName, stage := range t.Stages {
-		err := stage.AddSecNode(g, stageName, rootVertex.Name)
-		if err != nil {
-			return nil, SecVertex{}, fmt.Errorf("failed to get secGraph %w", err)
-		}
+	if err := t.addStagesVertex(g); err != nil {
+		return g, rootVertex, err
+	}
+	if err := t.addStagesEdges(g, rootVertex); err != nil {
+		return g, rootVertex, err
 	}
 	return g, rootVertex, nil
+}
+
+func (t *Template) addStagesVertex(g SecGraph) error {
+	for stageName, stage := range t.Stages {
+		err := stage.AddSecNode(g, stageName)
+		if err != nil {
+			return fmt.Errorf("failed to get secGraph %w", err)
+		}
+	}
+	return nil
+}
+
+func (t *Template) addStagesEdges(g SecGraph, rootVertex SecVertex) error {
+	for stageName, stage := range t.Stages {
+		stage.AddEdges(g, stageName, rootVertex)
+	}
+	return nil
+}
+
+func (t Template) Start(ctx context.Context) (error, <-chan error) {
+
+	//parentOutputCIndex: store the outputs of parents plugins where key is the child plugin
+	parentOutputCIndex := map[string][]<-chan *pluginctl.DataStream{}
+	errorsOutputCIndex := map[string]<-chan error{}
+	graphSec, rootVertex, err := t.getTemplateGraph()
+	if err != nil {
+		return fmt.Errorf("failed to start template %w", err), nil
+	}
+	graph.BFS(graphSec, rootVertex.Name, func(s string) bool {
+
+		currentVertex, err := graphSec.Vertex(s)
+		if err != nil {
+			slog.Error("strange error: current visited vertex not found in the graph", "error", err)
+			return true
+		}
+		currentPlugin := currentVertex.plugin
+		slog.Debug("current plugin", "plugin", currentPlugin, "vertex", currentVertex.Name)
+		//Merge and Pipes all parents output into current plugins
+		parentOutputC := chantools.Merge(parentOutputCIndex[s]...)
+		currentOutputC, currentErrC := NewPluginPipe(currentPlugin).Pipe(ctx, parentOutputC)
+		errorsOutputCIndex[s] = currentErrC
+
+		// Get all childs of current Vertex
+		// Broadcast: create an output chan for each childs that will receive a copy of current plugin output)
+		// save for each child its own chan copy of current plugin output
+
+		childsMap, err := graphSec.AdjacencyMap()
+		if err != nil {
+			slog.Error(fmt.Sprintf("failed to start template %v", err))
+			return true
+		}
+		childsNodes := childsMap[s]
+		parentOutputCForChilds := chantools.Broadcast(currentOutputC, uint(len(childsNodes)))
+
+		// For each childNodes (of the current node) we register the currentNode output as an input for the childs node
+		// (save it to be able to retrieve it when the child node will be visited)
+		i := 0
+		for n := range childsNodes {
+			childInputC, exist := parentOutputCIndex[n]
+			if !exist {
+				childInputC = make([]<-chan *pluginctl.DataStream, 0, 1)
+			}
+			childInputC = append(childInputC, parentOutputCForChilds[i])
+			parentOutputCIndex[n] = childInputC
+			i++
+		}
+		return false
+	})
+	return nil, chantools.Merge(maps.Values(errorsOutputCIndex)...)
+}
+
+func NewFileTemplate(path string) (Template, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return Template{}, err
+	}
+	return NewRawTemplate(content)
+}
+
+func NewRawTemplate(raw []byte) (Template, error) {
+	tpl := Template{}
+	err := yaml.Unmarshal(raw, &tpl)
+
+	return tpl, err
+
 }
 
 type Stage struct {
@@ -90,17 +176,31 @@ type Stage struct {
 	Pipe       []map[string]yaml.Node `yaml:"pipe"`
 }
 
-func (st Stage) AddSecNode(g SecGraph, name string, rootVertex string) error {
-	trait, err := st.GetSecVertex(name)
+func (st Stage) AddSecNode(g SecGraph, name string) error {
+	vertex, err := st.GetSecVertex(name)
 	if err != nil {
 		return fmt.Errorf("failed to add trait to graph, %w", err)
 	}
-	g.AddVertex(trait)
+	err = g.AddVertex(vertex)
+	if err != nil && err != graph.ErrVertexAlreadyExists {
+		return fmt.Errorf("failed to add SecVertex %s to graph: %w", name, err)
+	}
+
+	return nil
+}
+
+func (st Stage) AddEdges(g SecGraph, name string, rootVertex SecVertex) error {
 	if len(st.Parents) == 0 {
-		g.AddEdge(rootVertex, name)
+		err := g.AddEdge(rootVertex.Name, name)
+		if err != nil {
+			return fmt.Errorf("failed to link rootVertex to  %s : %w", name, err)
+		}
 	}
 	for _, p := range st.Parents {
-		g.AddEdge(p, name)
+		err := g.AddEdge(p, name)
+		if err != nil && err != graph.ErrEdgeAlreadyExists {
+			return fmt.Errorf("failed to link %s to  %s : %w", p, name, err)
+		}
 	}
 	return nil
 }
@@ -210,115 +310,3 @@ func (st Stage) buildPipe(pipeName string, config yaml.Node) (Pipeable, error) {
 		return NewEmptyPipe(), errors.New("failed to build template. Template unknown")
 	}
 }
-
-func (t Template) Start(ctx context.Context) error {
-
-	//parentOutputCIndex: store the outputs of parents plugins where key is the child plugin
-	parentOutputCIndex := map[string][]<-chan *pluginctl.DataStream{}
-	errorsOutputCIndex := map[string]<-chan error{}
-	graphSec, rootVertex, err := t.getTemplateGraph()
-	if err != nil {
-		return fmt.Errorf("failed to start template %w", err)
-	}
-	graph.BFS(graphSec, rootVertex.Name, func(s string) bool {
-
-		currentVertex, err := graphSec.Vertex(s)
-		if err != nil {
-			slog.Error("strange error: current visited vertex not found in the graph", "error", err)
-			return true
-		}
-		currentPlugin := currentVertex.plugin
-		slog.Debug("current plugin", "plugin", currentPlugin, "vertex", currentVertex.Name)
-		parentOutputC := chantools.Merge(parentOutputCIndex[s]...)
-
-		childsMap, err := graphSec.AdjacencyMap()
-		if err != nil {
-			slog.Error(fmt.Sprintf("failed to start template %v", err))
-			return true
-		}
-		childsNodes := childsMap[s]
-		currentOutputC, currentErrC := NewPluginPipe(currentPlugin).Pipe(ctx, parentOutputC)
-
-		parentOutputCForChilds := chantools.Broadcast(currentOutputC, uint(len(childsNodes)))
-		errorsOutputCIndex[s] = currentErrC
-
-		//Duplicate current Node output stream. Each duplicate will serve as an input for childNodes.
-		//Skipping this, leads to each childs listening the same channels.. which mean only one child node will receive the stream.
-
-		// For each childNodes (of the current node) we register the currentNode output as an input for the childs node
-		// (save it to be able to retrieve it when the child node will be visited)
-		i := 0
-		for n := range childsNodes {
-			childInputC, exist := parentOutputCIndex[n]
-			if !exist {
-				childInputC = make([]<-chan *pluginctl.DataStream, 0, 1)
-			}
-			childInputC = append(childInputC, parentOutputCForChilds[i])
-			parentOutputCIndex[n] = childInputC
-			i++
-		}
-		return false
-	})
-	return nil
-}
-
-func NewFileTemplate(path string) (Template, error) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return Template{}, err
-	}
-	return NewRawTemplate(content)
-}
-
-func NewRawTemplate(raw []byte) (Template, error) {
-	tpl := Template{}
-	err := yaml.Unmarshal(raw, &tpl)
-
-	return tpl, err
-
-}
-
-func newPlugin(name string) pluginctl.SecPipelinePluginable {
-	p, e := pluginctl.NewPlugin(name, pluginctl.WithPath("/Users/benjaminbouachour/Private/Projects/SecPipeline/bin/plugins")).Connect()
-	if e != nil {
-		slog.Error("failed to get new plugin", "function", "newPlugin", "error", e)
-	}
-	return p
-}
-
-// func NewMockTemplate() Template {
-// 	return Template{
-// 		Pipeline: MockTemplate,
-// 	}
-// }
-
-// var MockTemplate = tree.NewNode[pluginctl.SecPipelinePluginable, string](
-// 	"martian",
-// 	newPlugin("martianProxy"),
-// 	tree.NewNode(
-// 		"leaks",
-// 		NewSecPipePlugin(
-// 			NewChainedPipe(
-// 				NewGoTemplatePipe(
-// 					WithJsonInput(),
-// 					WithTemplatePattern("{{ .response.content.text }},\n"),
-// 				),
-// 				// NewBase64Decoder(),
-// 			), newPlugin("leaks")),
-// 		tree.NewNode("rawfile",
-// 			NewSecPipePlugin(
-// 				NewChainedPipe(
-// 					NewGoTemplatePipe(
-// 						WithJsonInput(),
-// 						WithTemplatePattern("{{ .response.content.text }},\n"),
-// 					),
-// 					// NewBase64Decoder(),
-// 				), newPlugin("rawfile")),
-// 		),
-// 	),
-// 	// tree.NewNode(
-// 	// 	"spider",
-// 	// 	NewSecPipePlugin(NewGoTemplatePipe(WithJsonInput(), WithTemplatePattern("")))
-// 	// 	newPlugin("spider"),
-// 	// ),
-// )
