@@ -128,7 +128,7 @@ func (st Stage) createPlugin(name string, path string) (pluginctl.SecPipelinePlu
 	if st.Pipe == nil || pipeCount == 0 {
 		return plugin, nil
 	}
-	pipe, err := st.buildPipes()
+	pipe, err := st.buildPipes(name)
 	if err != nil {
 		return nil, err
 	}
