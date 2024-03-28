@@ -10,9 +10,25 @@ import (
 
 	"github.com/benji-bou/SecPipeline/pluginctl"
 	"github.com/benji-bou/chantools"
-	"github.com/benji-bou/tree"
+	"github.com/dominikbraun/graph"
+	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 )
+
+type EmptySecPlugin struct {
+}
+
+func (spp EmptySecPlugin) GetInputSchema() ([]byte, error) {
+	return nil, nil
+}
+
+func (spp EmptySecPlugin) Config(config []byte) error {
+	return nil
+}
+
+func (spp EmptySecPlugin) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
+	return nil, nil
+}
 
 type SecPipePlugin struct {
 	pipe   Pipeable
@@ -35,75 +51,83 @@ func (spp SecPipePlugin) Run(ctx context.Context, input <-chan *pluginctl.DataSt
 	return spp.plugin.Run(ctx, pipeOutputC)
 }
 
-type SecNode = tree.Nodable[pluginctl.SecPipelinePluginable, string]
+type SecVertex struct {
+	Name   string
+	plugin pluginctl.SecPipelinePluginable
+}
+
+type SecGraph = graph.Graph[string, SecVertex]
 
 type Template struct {
-	Name        string              `yaml:"name" json:"name"`
-	Description string              `yaml:"description" json:"description"`
-	Version     string              `yaml:"version" json:"version"`
-	Author      string              `yaml:"author" json:"author"`
-	Pipeline    map[string]Pipeline `yaml:"pipeline" json:"pipeline"`
+	Name        string           `yaml:"name" json:"name"`
+	Description string           `yaml:"description" json:"description"`
+	Version     string           `yaml:"version" json:"version"`
+	Author      string           `yaml:"author" json:"author"`
+	Stages      map[string]Stage `yaml:"stages" json:"stages"`
 }
 
-func (t Template) GetSecNodeTree() (SecNode, error) {
-	if len(t.Pipeline) > 1 {
-		return nil, fmt.Errorf("multiple root node in the pipeline detected")
+func (t *Template) getTemplateGraph() (SecGraph, SecVertex, error) {
+
+	g := graph.New(func(spp SecVertex) string {
+		return spp.Name
+	}, graph.Directed())
+	rootVertex := SecVertex{Name: uuid.NewString(), plugin: EmptySecPlugin{}}
+	g.AddVertex(rootVertex)
+	for stageName, stage := range t.Stages {
+		err := stage.AddSecNode(g, stageName, rootVertex.Name)
+		if err != nil {
+			return nil, SecVertex{}, fmt.Errorf("failed to get secGraph %w", err)
+		}
 	}
-	for _, child := range t.Pipeline {
-		return child.GetSecNodeTree()
-	}
-	return nil, fmt.Errorf("No pipeline defined")
+	return g, rootVertex, nil
 }
 
-type Pipeline struct {
+type Stage struct {
+	Parents    []string               `yaml:"parents"`
 	PluginPath string                 `yaml:"pluginPath"`
 	Plugin     string                 `yaml:"plugin"`
 	Config     map[string]any         `yaml:"config"`
-	Childs     map[string]Pipeline    `yaml:"childs"`
 	Pipe       []map[string]yaml.Node `yaml:"pipe"`
 }
 
-func (pl Pipeline) GetSecNodeTree() (SecNode, error) {
-	currentNode, err := pl.GetSecNode()
+func (st Stage) AddSecNode(g SecGraph, name string, rootVertex string) error {
+	trait, err := st.GetSecVertex(name)
 	if err != nil {
-		return nil, fmt.Errorf("failed build secnode tree, %w", err)
+		return fmt.Errorf("failed to add trait to graph, %w", err)
 	}
-	childsNode := make([]SecNode, 0, len(pl.Childs))
-	for _, child := range pl.Childs {
-		childNode, err := child.GetSecNodeTree()
-		if err != nil {
-			return nil, fmt.Errorf("failed build secnode tree node: %s, %w", pl.Plugin, err)
-		}
-		childsNode = append(childsNode, childNode)
+	g.AddVertex(trait)
+	if len(st.Parents) == 0 {
+		g.AddEdge(rootVertex, name)
 	}
-	currentNode.(*tree.Node[pluginctl.SecPipelinePluginable, string]).AddNode(childsNode...)
-	return currentNode, nil
+	for _, p := range st.Parents {
+		g.AddEdge(p, name)
+	}
+	return nil
 }
 
-func (pl Pipeline) GetSecNode() (SecNode, error) {
-	defaultPath := "/Users/benjaminbouachour/Private/Projects/SecPipeline/bin/plugins"
-	if pl.PluginPath != "" {
-		defaultPath = pl.PluginPath
-	}
-	plugin, err := pluginctl.NewPlugin(pl.Plugin, pluginctl.WithPath(defaultPath)).Connect()
-	if err != nil {
-		return nil, fmt.Errorf("failed to build plugin %s: %w", pl.Plugin, err)
-	}
+func (pl Stage) configPlugin(name string, plugin pluginctl.SecPipelinePluginable) error {
 	if pl.Config != nil && len(pl.Plugin) > 0 {
 		cJson, err := json.Marshal(pl.Config)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal configuration %s: %w", pl.Plugin, err)
+			return fmt.Errorf("failed to marshal configuration %s with label %s: %w", pl.Plugin, name, err)
 		}
 		err = plugin.Config(cJson)
 		if err != nil {
-			return nil, fmt.Errorf("failed to configure %s: %w", pl.Plugin, err)
+			return fmt.Errorf("failed to configure %s with label %s: %w", pl.Plugin, name, err)
 		}
+	}
+	return nil
+}
+
+func (pl Stage) createPlugin(name string, path string) (pluginctl.SecPipelinePluginable, error) {
+	plugin, err := pluginctl.NewPlugin(pl.Plugin, pluginctl.WithPath(path)).Connect()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build plugin %s with label %s: %w", pl.Plugin, name, err)
 	}
 	pipeCount := len(pl.Pipe)
 	if pl.Pipe == nil || pipeCount == 0 {
-		return tree.NewNode(pl.Plugin, plugin), nil
+		return plugin, nil
 	}
-
 	pipes := make([]Pipeable, 0, pipeCount)
 	for _, pipeMapConfig := range pl.Pipe {
 		for pipeName, pipeConfig := range pipeMapConfig {
@@ -111,13 +135,28 @@ func (pl Pipeline) GetSecNode() (SecNode, error) {
 			if err != nil {
 
 				slog.Error("failed to build pipe", "error", err)
-				return nil, fmt.Errorf("failed to build pipe %s for %s: %w", pipeName, pl.Plugin, err)
+				return nil, fmt.Errorf("failed to build pipe %s for %s with label %s: %w", pipeName, pl.Plugin, name, err)
 			}
 			pipes = append(pipes, pipeable)
 		}
 	}
 	pipe := NewChainedPipe(pipes...)
-	return tree.NewNode(pl.Plugin, NewSecPipePlugin(pipe, plugin)), nil
+	return NewSecPipePlugin(pipe, plugin), nil
+}
+
+func (pl Stage) GetSecVertex(name string) (SecVertex, error) {
+	defaultPath := "/Users/benjaminbouachour/Private/Projects/SecPipeline/bin/plugins"
+	if pl.PluginPath != "" {
+		defaultPath = pl.PluginPath
+	}
+	plugin, err := pl.createPlugin(name, defaultPath)
+	if err != nil {
+		return SecVertex{}, err
+	}
+	if err := pl.configPlugin(name, plugin); err != nil {
+		return SecVertex{}, err
+	}
+	return SecVertex{Name: name, plugin: plugin}, nil
 }
 
 func BuildPipe(pipeName string, config yaml.Node) (Pipeable, error) {
@@ -166,28 +205,37 @@ func BuildPipe(pipeName string, config yaml.Node) (Pipeable, error) {
 
 func (t Template) Start(ctx context.Context) error {
 
+	//parentOutputCIndex: store the outputs of parents plugins where key is the child plugin
 	parentOutputCIndex := map[string][]<-chan *pluginctl.DataStream{}
 	errorsOutputCIndex := map[string]<-chan error{}
-	treeSecNode, err := t.GetSecNodeTree()
+	graphSec, rootVertex, err := t.getTemplateGraph()
 	if err != nil {
 		return fmt.Errorf("failed to start template %w", err)
 	}
-	// walk accross the secNode tree in a levelordered way. (aka, every nodes from a level before visiting sublevels nodes)
-	tree.Walker(treeSecNode, func(currentNode SecNode) error {
-		currentPlugin := currentNode.GetValue()
-		slog.Debug("current plugin", "plugin", currentPlugin)
-		// Merging all parents outputs to feed the current node
-		parentOutputC := chantools.Merge(parentOutputCIndex[currentNode.GetID()]...)
+	graph.BFS(graphSec, rootVertex.Name, func(s string) bool {
 
-		childsNodes := currentNode.GetChilds()
+		currentVertex, err := graphSec.Vertex(s)
+		if err != nil {
+			slog.Error("strange error: current visited vertex not found in the graph", "error", err)
+			return true
+		}
+		currentPlugin := currentVertex.plugin
+		slog.Debug("current plugin", "plugin", currentPlugin, "vertex", currentVertex.Name)
+		parentOutputC := chantools.Merge(parentOutputCIndex[s]...)
 
-		//Piping the parentStream output into the currentpluging
+		childsMap, err := graphSec.AdjacencyMap()
+		if err != nil {
+			slog.Error(fmt.Sprintf("failed to start template %v", err))
+			return true
+		}
+		childsNodes := childsMap[s]
 		currentOutputC, currentErrC := NewPluginPipe(currentPlugin).Pipe(ctx, parentOutputC)
+
+		parentOutputCForChilds := chantools.Broadcast(currentOutputC, uint(len(childsNodes)))
+		errorsOutputCIndex[s] = currentErrC
 
 		//Duplicate current Node output stream. Each duplicate will serve as an input for childNodes.
 		//Skipping this, leads to each childs listening the same channels.. which mean only one child node will receive the stream.
-		parentOutputCForChilds := chantools.Broadcast(currentOutputC, uint(len(childsNodes)))
-		errorsOutputCIndex[currentNode.GetID()] = currentErrC
 
 		// For each childNodes (of the current node) we register the currentNode output as an input for the childs node
 		// (save it to be able to retrieve it when the child node will be visited)
@@ -201,9 +249,8 @@ func (t Template) Start(ctx context.Context) error {
 			parentOutputCIndex[n] = childInputC
 			i++
 		}
-
-		return nil
-	}, tree.LevelOrderSearch)
+		return false
+	})
 	return nil
 }
 
@@ -212,20 +259,16 @@ func NewFileTemplate(path string) (Template, error) {
 	if err != nil {
 		return Template{}, err
 	}
+	return NewRawTemplate(content)
+}
+
+func NewRawTemplate(raw []byte) (Template, error) {
 	tpl := Template{}
-	err = yaml.Unmarshal(content, &tpl)
+	err := yaml.Unmarshal(raw, &tpl)
+
 	return tpl, err
-}
 
-func NewRawTemplate(raw interface{}) Template {
-	return Template{}
 }
-
-// func NewMockTemplate() Template {
-// 	return Template{
-// 		Pipeline: MockTemplate,
-// 	}
-// }
 
 func newPlugin(name string) pluginctl.SecPipelinePluginable {
 	p, e := pluginctl.NewPlugin(name, pluginctl.WithPath("/Users/benjaminbouachour/Private/Projects/SecPipeline/bin/plugins")).Connect()
@@ -234,6 +277,12 @@ func newPlugin(name string) pluginctl.SecPipelinePluginable {
 	}
 	return p
 }
+
+// func NewMockTemplate() Template {
+// 	return Template{
+// 		Pipeline: MockTemplate,
+// 	}
+// }
 
 // var MockTemplate = tree.NewNode[pluginctl.SecPipelinePluginable, string](
 // 	"martian",
