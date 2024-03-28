@@ -105,30 +105,29 @@ func (st Stage) AddSecNode(g SecGraph, name string, rootVertex string) error {
 	return nil
 }
 
-func (pl Stage) GetSecVertex(name string) (SecVertex, error) {
-	defaultPath := "/Users/benjaminbouachour/Private/Projects/SecPipeline/bin/plugins"
-	if pl.PluginPath != "" {
-		defaultPath = pl.PluginPath
-	}
-	plugin, err := pluginctl.NewPlugin(pl.Plugin, pluginctl.WithPath(defaultPath)).Connect()
-	if err != nil {
-		return SecVertex{}, fmt.Errorf("failed to build plugin %s with label %s: %w", pl.Plugin, name, err)
-	}
+func (pl Stage) configPlugin(name string, plugin pluginctl.SecPipelinePluginable) error {
 	if pl.Config != nil && len(pl.Plugin) > 0 {
 		cJson, err := json.Marshal(pl.Config)
 		if err != nil {
-			return SecVertex{}, fmt.Errorf("failed to marshal configuration %s with label %s: %w", pl.Plugin, name, err)
+			return fmt.Errorf("failed to marshal configuration %s with label %s: %w", pl.Plugin, name, err)
 		}
 		err = plugin.Config(cJson)
 		if err != nil {
-			return SecVertex{}, fmt.Errorf("failed to configure %s with label %s: %w", pl.Plugin, name, err)
+			return fmt.Errorf("failed to configure %s with label %s: %w", pl.Plugin, name, err)
 		}
+	}
+	return nil
+}
+
+func (pl Stage) createPlugin(name string, path string) (pluginctl.SecPipelinePluginable, error) {
+	plugin, err := pluginctl.NewPlugin(pl.Plugin, pluginctl.WithPath(path)).Connect()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build plugin %s with label %s: %w", pl.Plugin, name, err)
 	}
 	pipeCount := len(pl.Pipe)
 	if pl.Pipe == nil || pipeCount == 0 {
-		return SecVertex{Name: name, plugin: plugin}, nil
+		return plugin, nil
 	}
-
 	pipes := make([]Pipeable, 0, pipeCount)
 	for _, pipeMapConfig := range pl.Pipe {
 		for pipeName, pipeConfig := range pipeMapConfig {
@@ -136,13 +135,28 @@ func (pl Stage) GetSecVertex(name string) (SecVertex, error) {
 			if err != nil {
 
 				slog.Error("failed to build pipe", "error", err)
-				return SecVertex{}, fmt.Errorf("failed to build pipe %s for %s with label %s: %w", pipeName, pl.Plugin, name, err)
+				return nil, fmt.Errorf("failed to build pipe %s for %s with label %s: %w", pipeName, pl.Plugin, name, err)
 			}
 			pipes = append(pipes, pipeable)
 		}
 	}
 	pipe := NewChainedPipe(pipes...)
-	return SecVertex{Name: name, plugin: NewSecPipePlugin(pipe, plugin)}, nil
+	return NewSecPipePlugin(pipe, plugin), nil
+}
+
+func (pl Stage) GetSecVertex(name string) (SecVertex, error) {
+	defaultPath := "/Users/benjaminbouachour/Private/Projects/SecPipeline/bin/plugins"
+	if pl.PluginPath != "" {
+		defaultPath = pl.PluginPath
+	}
+	plugin, err := pl.createPlugin(name, defaultPath)
+	if err != nil {
+		return SecVertex{}, err
+	}
+	if err := pl.configPlugin(name, plugin); err != nil {
+		return SecVertex{}, err
+	}
+	return SecVertex{Name: name, plugin: plugin}, nil
 }
 
 func BuildPipe(pipeName string, config yaml.Node) (Pipeable, error) {
