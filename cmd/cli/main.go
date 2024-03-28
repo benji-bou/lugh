@@ -39,12 +39,20 @@ func main() {
 			if err != nil {
 				return err
 			}
-			tpl.Start(context.Background())
-
+			err, errC := tpl.Start(context.Background())
+			if err != nil {
+				slog.Error("failed to start template", "error", err)
+				return err
+			}
 			sigc := make(chan os.Signal, 1)
 			signal.Notify(sigc, os.Interrupt)
 			for {
 				select {
+				case e, ok := <-errC:
+					if !ok {
+						return nil
+					}
+					slog.Error("an error occured in a stage", "error", e)
 				case <-sigc:
 					return nil
 				}
