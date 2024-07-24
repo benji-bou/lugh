@@ -20,8 +20,8 @@ const _ = grpc.SupportPackageIsVersion7
 type SecPipelinePluginsClient interface {
 	GetInputSchema(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*InputSchema, error)
 	Config(ctx context.Context, in *RunInputConfig, opts ...grpc.CallOption) (*Empty, error)
-	SendLifecycleEvent(ctx context.Context, in *LifecycleEvent, opts ...grpc.CallOption) (*Empty, error)
-	Run(ctx context.Context, opts ...grpc.CallOption) (SecPipelinePlugins_RunClient, error)
+	Input(ctx context.Context, opts ...grpc.CallOption) (SecPipelinePlugins_InputClient, error)
+	Output(ctx context.Context, in *Empty, opts ...grpc.CallOption) (SecPipelinePlugins_OutputClient, error)
 }
 
 type secPipelinePluginsClient struct {
@@ -50,39 +50,65 @@ func (c *secPipelinePluginsClient) Config(ctx context.Context, in *RunInputConfi
 	return out, nil
 }
 
-func (c *secPipelinePluginsClient) SendLifecycleEvent(ctx context.Context, in *LifecycleEvent, opts ...grpc.CallOption) (*Empty, error) {
-	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/pluginctl.SecPipelinePlugins/SendLifecycleEvent", in, out, opts...)
+func (c *secPipelinePluginsClient) Input(ctx context.Context, opts ...grpc.CallOption) (SecPipelinePlugins_InputClient, error) {
+	stream, err := c.cc.NewStream(ctx, &SecPipelinePlugins_ServiceDesc.Streams[0], "/pluginctl.SecPipelinePlugins/Input", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
-}
-
-func (c *secPipelinePluginsClient) Run(ctx context.Context, opts ...grpc.CallOption) (SecPipelinePlugins_RunClient, error) {
-	stream, err := c.cc.NewStream(ctx, &SecPipelinePlugins_ServiceDesc.Streams[0], "/pluginctl.SecPipelinePlugins/Run", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &secPipelinePluginsRunClient{stream}
+	x := &secPipelinePluginsInputClient{stream}
 	return x, nil
 }
 
-type SecPipelinePlugins_RunClient interface {
+type SecPipelinePlugins_InputClient interface {
 	Send(*DataStream) error
+	CloseAndRecv() (*Empty, error)
+	grpc.ClientStream
+}
+
+type secPipelinePluginsInputClient struct {
+	grpc.ClientStream
+}
+
+func (x *secPipelinePluginsInputClient) Send(m *DataStream) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *secPipelinePluginsInputClient) CloseAndRecv() (*Empty, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(Empty)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *secPipelinePluginsClient) Output(ctx context.Context, in *Empty, opts ...grpc.CallOption) (SecPipelinePlugins_OutputClient, error) {
+	stream, err := c.cc.NewStream(ctx, &SecPipelinePlugins_ServiceDesc.Streams[1], "/pluginctl.SecPipelinePlugins/Output", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &secPipelinePluginsOutputClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type SecPipelinePlugins_OutputClient interface {
 	Recv() (*DataStream, error)
 	grpc.ClientStream
 }
 
-type secPipelinePluginsRunClient struct {
+type secPipelinePluginsOutputClient struct {
 	grpc.ClientStream
 }
 
-func (x *secPipelinePluginsRunClient) Send(m *DataStream) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *secPipelinePluginsRunClient) Recv() (*DataStream, error) {
+func (x *secPipelinePluginsOutputClient) Recv() (*DataStream, error) {
 	m := new(DataStream)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -96,8 +122,8 @@ func (x *secPipelinePluginsRunClient) Recv() (*DataStream, error) {
 type SecPipelinePluginsServer interface {
 	GetInputSchema(context.Context, *Empty) (*InputSchema, error)
 	Config(context.Context, *RunInputConfig) (*Empty, error)
-	SendLifecycleEvent(context.Context, *LifecycleEvent) (*Empty, error)
-	Run(SecPipelinePlugins_RunServer) error
+	Input(SecPipelinePlugins_InputServer) error
+	Output(*Empty, SecPipelinePlugins_OutputServer) error
 	mustEmbedUnimplementedSecPipelinePluginsServer()
 }
 
@@ -111,11 +137,11 @@ func (UnimplementedSecPipelinePluginsServer) GetInputSchema(context.Context, *Em
 func (UnimplementedSecPipelinePluginsServer) Config(context.Context, *RunInputConfig) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Config not implemented")
 }
-func (UnimplementedSecPipelinePluginsServer) SendLifecycleEvent(context.Context, *LifecycleEvent) (*Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SendLifecycleEvent not implemented")
+func (UnimplementedSecPipelinePluginsServer) Input(SecPipelinePlugins_InputServer) error {
+	return status.Errorf(codes.Unimplemented, "method Input not implemented")
 }
-func (UnimplementedSecPipelinePluginsServer) Run(SecPipelinePlugins_RunServer) error {
-	return status.Errorf(codes.Unimplemented, "method Run not implemented")
+func (UnimplementedSecPipelinePluginsServer) Output(*Empty, SecPipelinePlugins_OutputServer) error {
+	return status.Errorf(codes.Unimplemented, "method Output not implemented")
 }
 func (UnimplementedSecPipelinePluginsServer) mustEmbedUnimplementedSecPipelinePluginsServer() {}
 
@@ -166,48 +192,51 @@ func _SecPipelinePlugins_Config_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SecPipelinePlugins_SendLifecycleEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(LifecycleEvent)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(SecPipelinePluginsServer).SendLifecycleEvent(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pluginctl.SecPipelinePlugins/SendLifecycleEvent",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SecPipelinePluginsServer).SendLifecycleEvent(ctx, req.(*LifecycleEvent))
-	}
-	return interceptor(ctx, in, info, handler)
+func _SecPipelinePlugins_Input_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(SecPipelinePluginsServer).Input(&secPipelinePluginsInputServer{stream})
 }
 
-func _SecPipelinePlugins_Run_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(SecPipelinePluginsServer).Run(&secPipelinePluginsRunServer{stream})
-}
-
-type SecPipelinePlugins_RunServer interface {
-	Send(*DataStream) error
+type SecPipelinePlugins_InputServer interface {
+	SendAndClose(*Empty) error
 	Recv() (*DataStream, error)
 	grpc.ServerStream
 }
 
-type secPipelinePluginsRunServer struct {
+type secPipelinePluginsInputServer struct {
 	grpc.ServerStream
 }
 
-func (x *secPipelinePluginsRunServer) Send(m *DataStream) error {
+func (x *secPipelinePluginsInputServer) SendAndClose(m *Empty) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *secPipelinePluginsRunServer) Recv() (*DataStream, error) {
+func (x *secPipelinePluginsInputServer) Recv() (*DataStream, error) {
 	m := new(DataStream)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
 	return m, nil
+}
+
+func _SecPipelinePlugins_Output_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(SecPipelinePluginsServer).Output(m, &secPipelinePluginsOutputServer{stream})
+}
+
+type SecPipelinePlugins_OutputServer interface {
+	Send(*DataStream) error
+	grpc.ServerStream
+}
+
+type secPipelinePluginsOutputServer struct {
+	grpc.ServerStream
+}
+
+func (x *secPipelinePluginsOutputServer) Send(m *DataStream) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 // SecPipelinePlugins_ServiceDesc is the grpc.ServiceDesc for SecPipelinePlugins service.
@@ -225,17 +254,17 @@ var SecPipelinePlugins_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "Config",
 			Handler:    _SecPipelinePlugins_Config_Handler,
 		},
-		{
-			MethodName: "SendLifecycleEvent",
-			Handler:    _SecPipelinePlugins_SendLifecycleEvent_Handler,
-		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "Run",
-			Handler:       _SecPipelinePlugins_Run_Handler,
-			ServerStreams: true,
+			StreamName:    "Input",
+			Handler:       _SecPipelinePlugins_Input_Handler,
 			ClientStreams: true,
+		},
+		{
+			StreamName:    "Output",
+			Handler:       _SecPipelinePlugins_Output_Handler,
+			ServerStreams: true,
 		},
 	},
 	Metadata: "pluginctl/plugins.proto",

@@ -32,7 +32,10 @@ func (mp Output) Run(context context.Context, input <-chan *pluginctl.DataStream
 			select {
 			case <-context.Done():
 				return
-			case i := <-input:
+			case i, ok := <-input:
+				if !ok {
+					return
+				}
 				slog.Info(fmt.Sprintf("%s", string(i.Data)))
 			}
 		}

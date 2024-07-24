@@ -26,8 +26,9 @@ type SecPipelineGRPCPlugin struct {
 
 func (p SecPipelineGRPCPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
 	RegisterSecPipelinePluginsServer(s, &GRPCServer{
-		Impl: p.Impl,
-		Name: p.Name,
+		Impl:        p.Impl,
+		Name:        p.Name,
+		PluginDataC: make(chan pluginServerDataC),
 	})
 	return nil
 }

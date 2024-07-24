@@ -24,19 +24,10 @@ message Error {
   string message = 1;
 }
 
-enum LifecycleEventCode {
-  PARENT_STOPED = 0;
-  NO_MORE_MESSAGES = 1;
-}
-
-message LifecycleEvent {
-  LifecycleEventCode code = 1;
-  string message = 2;
-}
 
 service SecPipelinePlugins {
   rpc GetInputSchema(Empty) returns (InputSchema);
   rpc Config(RunInputConfig)   returns (Empty);
-  rpc SendLifecycleEvent(LifecycleEvent) returns (Empty);
-  rpc Run(stream DataStream)   returns (stream DataStream);
+  rpc Input(stream DataStream)   returns (Empty);
+  rpc Output(Empty)  returns (stream DataStream);
 }
