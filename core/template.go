@@ -253,7 +253,7 @@ func (st Stage) createPlugin(name string, path string) (pluginctl.SecPipelinePlu
 }
 
 func (st Stage) GetSecVertex(name string) (SecVertex, error) {
-	defaultPath := "/Users/benjaminbouachour/Private/Projects/SecPipeline/bin/plugins"
+	defaultPath := "/Users/benjamin/Private/Projects/SecPipeline/core/secpipeline/bin/plugins"
 	if st.PluginPath != "" {
 		defaultPath = st.PluginPath
 	}

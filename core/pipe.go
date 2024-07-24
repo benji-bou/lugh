@@ -111,6 +111,19 @@ func WithYamlInput() GoTemplateOption {
 	}
 }
 
+func WithStringInput() GoTemplateOption {
+	return func(configure *goTemplatePipe) error {
+		configure.unmarshaler = func(in []byte, v any) error {
+			switch vT := v.(type) {
+			case *interface{}:
+				*vT = string(in)
+			}
+			return nil
+		}
+		return nil
+	}
+}
+
 func WithTemplate(tmp *template.Template) GoTemplateOption {
 	return func(configure *goTemplatePipe) error {
 		configure.template = tmp
@@ -137,6 +150,8 @@ type GoTemplateConfig struct {
 func NewGoTemplatePipeWithConfig(config GoTemplateConfig) Pipeable {
 	opt := []GoTemplateOption{}
 	switch config.Format {
+	case "string":
+		opt = append(opt, WithStringInput())
 	case "yaml":
 		opt = append(opt, WithYamlInput())
 	default:
@@ -158,7 +173,7 @@ func NewGoTemplatePipe[OPT GoTemplateOption](opt ...OPT) Pipeable {
 		return NewEmptyPipe()
 	}
 	return NewMapPipe(func(elem *pluginctl.DataStream) *pluginctl.DataStream {
-		var dataInput map[string]any
+		var dataInput interface{}
 		err := tmp.unmarshaler(elem.Data, &dataInput)
 		if err != nil {
 			slog.Error("failed to unmarshal pipe elem", "error", err, "pipe", "GoTemplatePipe")

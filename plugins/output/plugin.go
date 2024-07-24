@@ -40,8 +40,8 @@ func (mp Output) Run(context context.Context, input <-chan *pluginctl.DataStream
 }
 
 func main() {
-	helper.SetLog(slog.LevelInfo)
-	plugin := pluginctl.NewPlugin("",
+	helper.SetLog(slog.LevelDebug)
+	plugin := pluginctl.NewPlugin("output",
 		pluginctl.WithPluginImplementation(NewOutput()),
 	)
 	plugin.Serve()
