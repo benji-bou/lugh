@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"strings"
+	"sync"
 
 	"github.com/benji-bou/SecPipeline/helper"
 	"github.com/benji-bou/SecPipeline/pluginctl"
@@ -44,7 +45,11 @@ func (wh Docker) GetInputSchema() ([]byte, error) {
 }
 
 func (wh Docker) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
-	cli, err := client.NewClientWithOpts(client.WithHost(wh.config.Host), client.WithAPIVersionNegotiation())
+	hostOpt := client.WithHostFromEnv()
+	if wh.config.Host != "" {
+		hostOpt = client.WithHost(wh.config.Host)
+	}
+	cli, err := client.NewClientWithOpts(hostOpt, client.WithAPIVersionNegotiation())
 	if err != nil {
 		panic(err)
 	}
@@ -95,9 +100,21 @@ func (wh Docker) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<
 			dataStreamRes := chantools.Map(byteResC, func(elem []byte) *pluginctl.DataStream {
 				return &pluginctl.DataStream{Data: elem, ParentSrc: "Docker"}
 			})
-			chantools.ForwardTo(ctx, dataStreamRes, cDataStream)
+			wg := &sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for elem := range dataStreamRes {
+					cDataStream <- elem
+				}
+				slog.Debug("end of forward data response ")
+			}()
+			slog.Debug("copy")
 			io.Copy(writer, out)
+			slog.Debug("waiting end of forward")
 			writer.Close()
+			wg.Wait()
+			slog.Debug("end of wait will close")
 			out.Close()
 		}
 

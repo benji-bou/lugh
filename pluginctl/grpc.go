@@ -61,12 +61,10 @@ func (m *GRPCClient) Run(ctx context.Context, input <-chan *DataStream) (<-chan 
 					return
 				}
 			}
-			slog.Debug("recv data", "function", "Run", "Object", "GRPCClient", "name", m.Name, "req", req, "err", err)
+			slog.Debug("recv data", "function", "Run", "Object", "GRPCClient", "name", m.Name, "err", err)
 			toForward := runLoop.Recv(req)
 			if toForward != nil {
-				slog.Debug("will forward data", "function", "Run", "Object", "GRPCClient", "name", m.Name, "req", req)
 				dataC <- toForward
-				slog.Debug("did forward data", "function", "Run", "Object", "GRPCClient", "name", m.Name, "req", req)
 			}
 		}
 	}, chantools.WithName[*DataStream](m.Name+"-"+uuid.NewString()))
@@ -144,7 +142,7 @@ func (m *GRPCServer) Input(stream SecPipelinePlugins_InputServer) error {
 	inputDataC := make(chan *DataStream)
 	defer close(inputDataC)
 	runLoop := NewRunLoop()
-	outputDataC, outputErrC := m.Impl.Run(stream.Context(), inputDataC)
+	outputDataC, outputErrC := m.Impl.Run(context.Background(), inputDataC)
 	m.PluginDataC <- pluginServerDataC{outputErrC: outputErrC, outputDataC: outputDataC}
 
 	for {
@@ -161,7 +159,7 @@ func (m *GRPCServer) Input(stream SecPipelinePlugins_InputServer) error {
 				return err
 			}
 		}
-		slog.Debug("recv data", "function", "Run", "Object", "GRPCServer", "name", m.Name, "req", req)
+		slog.Debug("recv data", "function", "Run", "Object", "GRPCServer", "name", m.Name)
 		toForward := runLoop.Recv(req)
 		if toForward != nil {
 			inputDataC <- toForward
@@ -200,15 +198,6 @@ func (m *GRPCServer) Output(empty *Empty, stream SecPipelinePlugins_OutputServer
 	}
 
 }
-
-// func (m *GRPCServer) Run(stream SecPipelinePlugins_RunServer) error {
-//
-// 	var ctx context.Context
-// 	ctx, m.runCancelCtx = context.WithCancel(stream.Context())
-
-//
-
-// }
 
 func (m *GRPCServer) mustEmbedUnimplementedSecPipelinePluginsServer() {
 	slog.Info("inside GRPCServer mustEmbedUnimplementedSecPipelinePluginsServer")
