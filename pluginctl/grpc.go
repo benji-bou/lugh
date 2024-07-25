@@ -4,13 +4,12 @@ import (
 	"bytes"
 	context "context"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 
 	"github.com/benji-bou/chantools"
 	"github.com/google/uuid"
-	"google.golang.org/grpc/codes"
+	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
 )
 
@@ -18,10 +17,6 @@ type SecPipelinePluginable interface {
 	GetInputSchema() ([]byte, error)
 	Config(config []byte) error
 	Run(ctx context.Context, input <-chan *DataStream) (<-chan *DataStream, <-chan error)
-}
-
-type SecPipelinePluginLifecycle interface {
-	SendLifecycleEvent(ctx context.Context, event *LifecycleEvent) error
 }
 
 type GRPCClient struct {
@@ -42,58 +37,96 @@ func (m *GRPCClient) Config(config []byte) error {
 }
 
 func (m *GRPCClient) Run(ctx context.Context, input <-chan *DataStream) (<-chan *DataStream, <-chan error) {
-	stream, err := m.client.Run(ctx)
-	if err != nil {
-		return nil, chantools.Once(fmt.Errorf("grpc client call to run failed %w", err))
-	}
+	clientStreamOutputDone := make(chan struct{})
 	runLoop := NewRunLoop()
-	chantools.ForEachWithEnd(input, func(data *DataStream) {
-		slog.Debug("will send data", "function", "Run", "Object", "GRPCClient", "name", m.Name, "req", data)
-		for _, d := range runLoop.Send(data) {
-			slog.Debug("send data", "function", "Run", "Object", "GRPCClient", "name", m.Name, "req", d)
-
-			err := stream.Send(d)
-			if err != nil {
-				slog.Error("stream send error", "function", "Run", "Object", "GRPCClient", "error", err, "name", m.Name)
-			}
+	outputDataC, outputErrC := chantools.NewWithErr(func(dataC chan<- *DataStream, errC chan<- error, params ...any) {
+		defer close(clientStreamOutputDone)
+		stream, err := m.client.Output(ctx, &Empty{})
+		if err != nil {
+			slog.Error("output stream error", "err", err, "function", "Run", "Object", "GRPCClient", "name", m.Name)
+			errC <- err
 		}
-
-	}, func() {
-		slog.Debug("end of input stream", "function", "Run", "Object", "GRPCClient", "name", m.Name)
-		slog.Info("send a NO_MORE_MESSAGE Event", "function", "Run", "Object", "GRPCClient", "name", m.Name)
-		m.client.SendLifecycleEvent(ctx, &LifecycleEvent{Code: LifecycleEventCode_NO_MORE_MESSAGES})
-	})
-
-	return chantools.NewWithErr(func(dataC chan<- *DataStream, errC chan<- error, params ...any) {
-		stream := params[0].(SecPipelinePlugins_RunClient)
 		for {
 			req, err := stream.Recv()
-			if errors.Is(err, io.EOF) {
-				slog.Debug("end of stream", "function", "Run", "Object", "GRPCClient", "name", m.Name, "req", req)
-				return
-			} else if err != nil {
-				slog.Error("stream recv error", "function", "Run", "Object", "GRPCClient", "error", err, "name", m.Name, "req", req)
-				errC <- err
-				return
-			} else {
-				slog.Debug("recv data", "function", "Run", "Object", "GRPCClient", "name", m.Name, "req", req)
-				toForward := runLoop.Recv(req)
-				if toForward != nil {
-					slog.Debug("will forward data", "function", "Run", "Object", "GRPCClient", "name", m.Name, "req", req)
-					dataC <- toForward
-					slog.Debug("did forward data", "function", "Run", "Object", "GRPCClient", "name", m.Name, "req", req)
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					slog.Debug("end of stream", "function", "Run", "Object", "GRPCClient", "name", m.Name)
+					return
+				} else if e, ok := status.FromError(err); ok && e.Code() == codes.Canceled {
+					slog.Debug("stream canceled", "function", "Run", "Object", "GRPCClient", "error", err, "name", m.Name)
+					return
+				} else {
+					slog.Error("stream error", "function", "Run", "Object", "GRPCClient", "error", err, "name", m.Name)
+					errC <- err
+					return
 				}
 			}
+			slog.Debug("recv data", "function", "Run", "Object", "GRPCClient", "name", m.Name, "err", err)
+			toForward := runLoop.Recv(req)
+			if toForward != nil {
+				dataC <- toForward
+			}
 		}
-	}, chantools.WithParam[*DataStream](stream), chantools.WithName[*DataStream](m.Name+"-"+uuid.NewString()))
+	}, chantools.WithName[*DataStream](m.Name+"-"+uuid.NewString()))
+
+	go func() {
+		stream, err := m.client.Input(ctx)
+		// isClosed := false
+		if err != nil {
+			slog.Debug("failed to retrieve client input stream", "name", m.Name, "err", err)
+			return
+		}
+		for {
+			select {
+			case _, ok := <-clientStreamOutputDone:
+				// `!ok` here `clientStreamOutputDone` is closed means that we won't receive anymore data from the plugin server.
+				// Not necessary to send data to the plugin server if no response will ever be sent back
+				if !ok {
+					err := stream.CloseSend()
+					if err != nil {
+						slog.Debug("failed to close client stream", "name", m.Name, "err", err)
+					}
+					// isClosed = true
+					//Here we do not return to prevent blocking the input channel and creating a go routine zombie on the other side of the channel
+					//TODO: Handle properly the `chantools.Broadcast` cancelation of listen with some kind of context
+				}
+			case inputStreamData, ok := <-input:
+				// `!ok` no more input will be recieved we can safely close the stream and return
+				if !ok {
+					err := stream.CloseSend()
+					if err != nil {
+						slog.Debug("failed to close client stream", "name", m.Name, "err", err)
+					}
+
+					return
+				}
+				// if !isClosed {
+				err := stream.Send(inputStreamData)
+				if err != nil {
+					slog.Error("stream send error", "function", "Run", "Object", "GRPCClient", "error", err, "name", m.Name)
+
+					// }
+				}
+
+			}
+		}
+
+	}()
+
+	return outputDataC, outputErrC
+}
+
+type pluginServerDataC struct {
+	outputErrC  <-chan error
+	outputDataC <-chan *DataStream
 }
 
 // Here is the gRPC server that GRPCClient talks to.
 type GRPCServer struct {
 	// This is the real implementation
-	Impl         SecPipelinePluginable
-	Name         string
-	runCancelCtx context.CancelFunc
+	Impl        SecPipelinePluginable
+	Name        string
+	PluginDataC chan pluginServerDataC
 }
 
 func (m *GRPCServer) GetInputSchema(context.Context, *Empty) (*InputSchema, error) {
@@ -105,58 +138,41 @@ func (m *GRPCServer) Config(ctx context.Context, config *RunInputConfig) (*Empty
 	return &Empty{}, m.Impl.Config(config.Config)
 }
 
-func (m *GRPCServer) SendLifecycleEvent(ctx context.Context, event *LifecycleEvent) (*Empty, error) {
-	var err error
-	slog.Debug("Receive Lifecycle Event", "function", "SendLifecycleEvent", "Object", "GRPCServer", "name", m.Name, "event", event.Code)
-	if plugin, ok := m.Impl.(SecPipelinePluginLifecycle); ok {
-		err = plugin.SendLifecycleEvent(ctx, event)
-	} else {
-		slog.Debug("Cancelling GRPCserver context", "function", "SendLifecycleEvent", "Object", "GRPCServer", "name", m.Name)
-		m.runCancelCtx()
-	}
-
-	return &Empty{}, err
-}
-
-func (m *GRPCServer) Run(stream SecPipelinePlugins_RunServer) error {
+func (m *GRPCServer) Input(stream SecPipelinePlugins_InputServer) error {
+	inputDataC := make(chan *DataStream)
+	defer close(inputDataC)
 	runLoop := NewRunLoop()
-	var ctx context.Context
-	ctx, m.runCancelCtx = context.WithCancel(stream.Context())
-	inputDataC, inputErrC := chantools.NewWithErr(func(dataC chan<- *DataStream, errC chan<- error, params ...any) {
-		stream := params[0].(SecPipelinePlugins_RunServer)
-		for {
-			req, err := stream.Recv()
-			if err != nil {
-				if errors.Is(err, io.EOF) {
-					slog.Debug("end of stream", "function", "Run", "Object", "GRPCServer", "name", m.Name)
-					return
-				} else if e, ok := status.FromError(err); ok {
-					switch e.Code() {
-					case codes.Canceled:
-						slog.Debug("stream canceled", "function", "Run", "Object", "GRPCServer", "error", err, "name", m.Name)
-						return
-					}
-				} else {
-					slog.Error("stream error", "function", "Run", "Object", "GRPCServer", "error", err, "name", m.Name)
-					errC <- err
-					return
-				}
+	outputDataC, outputErrC := m.Impl.Run(context.Background(), inputDataC)
+	m.PluginDataC <- pluginServerDataC{outputErrC: outputErrC, outputDataC: outputDataC}
 
-			}
-			slog.Debug("recv data", "function", "Run", "Object", "GRPCServer", "name", m.Name, "req", req)
-			toForward := runLoop.Recv(req)
-			if toForward != nil {
-				dataC <- toForward
+	for {
+		req, err := stream.Recv()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				slog.Debug("end of stream", "function", "Run", "Object", "GRPCServer", "name", m.Name)
+				return nil
+			} else if e, ok := status.FromError(err); ok && e.Code() == codes.Canceled {
+				slog.Debug("stream canceled", "function", "Run", "Object", "GRPCServer", "error", err, "name", m.Name)
+				return nil
+			} else {
+				slog.Error("stream error", "function", "Run", "Object", "GRPCServer", "error", err, "name", m.Name)
+				return err
 			}
 		}
-	}, chantools.WithParam[*DataStream](stream), chantools.WithName[*DataStream]("GRPCSServer Receive"))
-	defer func() {
-		slog.Debug("quiting GRPC Run", "function", "Run", "Object", "GRPCServer", "name", m.Name)
-	}()
-	outputDataC, outputErrC := m.Impl.Run(ctx, inputDataC)
+		slog.Debug("recv data", "function", "Run", "Object", "GRPCServer", "name", m.Name)
+		toForward := runLoop.Recv(req)
+		if toForward != nil {
+			inputDataC <- toForward
+		}
+	}
+}
+
+func (m *GRPCServer) Output(empty *Empty, stream SecPipelinePlugins_OutputServer) error {
+	pluginDataC := <-m.PluginDataC
+	runLoop := NewRunLoop()
 	for {
 		select {
-		case data, ok := <-outputDataC:
+		case data, ok := <-pluginDataC.outputDataC:
 			if !ok {
 				slog.Debug("data chan closed", "function", "Run", "Object", "GRPCServer", "name", m.Name)
 				return nil
@@ -169,22 +185,14 @@ func (m *GRPCServer) Run(stream SecPipelinePlugins_RunServer) error {
 					return err
 				}
 			}
-		case err, ok := <-outputErrC:
+		case err, ok := <-pluginDataC.outputErrC:
 			if !ok {
 				slog.Debug("output error chan closed", "function", "Run", "Object", "GRPCServer", "name", m.Name)
 				return nil
 			}
 			slog.Error("output error chan received error", "function", "Run", "Object", "GRPCServer", "error", err, "name", m.Name)
 			return err
-		case err, ok := <-inputErrC:
-			if !ok {
-				slog.Debug("input error chan closed", "function", "Run", "Object", "GRPCServer", "name", m.Name)
-				return nil
-			}
-			slog.Error("input error chan received error", "function", "Run", "Object", "GRPCServer", "error", err, "name", m.Name)
-			// case <-stream.Context().Done():
-			//
-			// 	return nil
+
 		}
 
 	}

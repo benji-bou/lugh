@@ -16,8 +16,8 @@ stages:
           format: string
           pattern: "holehe --only-used {{ . }}"
     config:
-      host: unix:///Users/benjamin/.orbstack/run/docker.sock
-      image: "my-holehe-image:latest"
+    
+      image: "holehe:latest"
   output: 
     plugin: output
     parents: 
