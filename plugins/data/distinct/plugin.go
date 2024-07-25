@@ -72,7 +72,10 @@ func (mp *MemFilter) Run(context context.Context, input <-chan *pluginctl.DataSt
 			select {
 			case <-context.Done():
 				return
-			case i := <-input:
+			case i, ok := <-input:
+				if !ok {
+					return
+				}
 				slog.Debug("received data", "data", string(i.Data))
 				buff := &bytes.Buffer{}
 				if mp.goTemplateFilter != nil {
