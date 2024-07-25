@@ -56,6 +56,7 @@ func StartAPI(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
+
 		err, errC := tpl.Start(context.Background())
 		if err != nil {
 			slog.Error("failed to start template", "error", err)

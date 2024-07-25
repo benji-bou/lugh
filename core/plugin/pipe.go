@@ -1,10 +1,11 @@
-package core
+package plugin
 
 import (
 	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -272,4 +273,50 @@ func NewSplitPipe(sep string) Pipeable {
 			c <- resDataStream
 		}
 	})
+}
+
+func buildPipe(pipeName string, config yaml.Node) (Pipeable, error) {
+	switch pipeName {
+	case "goTemplate":
+		configGoTpl := GoTemplateConfig{}
+		err := config.Decode(&configGoTpl)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build goTemplate pipe because: %w", err)
+		}
+		return NewGoTemplatePipeWithConfig(configGoTpl), nil
+	case "base64":
+		return NewBase64Decoder(), nil
+	case "regex":
+		configRegex := struct {
+			Pattern string `yaml:"pattern"`
+			Select  int    `yaml:"select"`
+		}{}
+
+		err := config.Decode(&configRegex)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build regex pipe because: %w", err)
+		}
+
+		return NewRegexpPipe(configRegex.Pattern, configRegex.Select), nil
+	case "insert":
+		configInsert := struct {
+			Content string `yaml:"content"`
+		}{}
+		err := config.Decode(&configInsert)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build regex pipe because: %w", err)
+		}
+		return NewInsertStringPipe(configInsert.Content), nil
+	case "split":
+		configSplit := struct {
+			Content string `yaml:"sep"`
+		}{}
+		err := config.Decode(&configSplit)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build regex pipe because: %w", err)
+		}
+		return NewSplitPipe(configSplit.Content), nil
+	default:
+		return NewEmptyPipe(), errors.New("failed to build template. Template unknown")
+	}
 }
