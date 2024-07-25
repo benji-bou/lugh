@@ -22,7 +22,6 @@ require (
 	golang.org/x/mobile v0.0.0-20240404231514-09dbf07665ed
 	google.golang.org/grpc v1.64.0
 	google.golang.org/protobuf v1.34.2
-	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -196,5 +195,6 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240701130421-f6361c86f094 // indirect
 	gopkg.in/djherbis/times.v1 v1.3.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
 )

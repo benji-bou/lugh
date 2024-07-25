@@ -12,10 +12,11 @@ import (
 	"strings"
 	"text/template"
 
+	sectpl "github.com/benji-bou/SecPipeline/core/template"
 	"github.com/benji-bou/SecPipeline/helper"
 	"github.com/benji-bou/SecPipeline/pluginctl"
 	"github.com/benji-bou/chantools"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 type Pipeable interface {
@@ -275,7 +276,7 @@ func NewSplitPipe(sep string) Pipeable {
 	})
 }
 
-func buildPipe(pipeName string, config yaml.Node) (Pipeable, error) {
+func NewPipe(pipeName string, config yaml.Node) (Pipeable, error) {
 	switch pipeName {
 	case "goTemplate":
 		configGoTpl := GoTemplateConfig{}
@@ -317,6 +318,23 @@ func buildPipe(pipeName string, config yaml.Node) (Pipeable, error) {
 		}
 		return NewSplitPipe(configSplit.Content), nil
 	default:
-		return NewEmptyPipe(), errors.New("failed to build template. Template unknown")
+		return NewEmptyPipe(), errors.New("failed to build sectpl. Template unknown")
 	}
+}
+
+func NewStagePipe(st sectpl.Stage) (Pipeable, error) {
+	pipeCount := len(st.Pipe)
+	pipes := make([]Pipeable, 0, pipeCount)
+	for _, pipeMapConfig := range st.Pipe {
+		for pipeName, pipeConfig := range pipeMapConfig {
+			pipeable, err := NewPipe(pipeName, pipeConfig)
+			if err != nil {
+
+				slog.Error("failed to build pipe", "error", err)
+				return nil, fmt.Errorf("failed to build pipe %s for %s because: %w", pipeName, st.Plugin, err)
+			}
+			pipes = append(pipes, pipeable)
+		}
+	}
+	return NewChainedPipe(pipes...), nil
 }

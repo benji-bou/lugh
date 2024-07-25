@@ -8,7 +8,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/benji-bou/SecPipeline/core"
+	"github.com/benji-bou/SecPipeline/core/graph"
 	"github.com/benji-bou/SecPipeline/helper"
 	"github.com/benji-bou/SecPipeline/pluginctl"
 
@@ -48,22 +48,19 @@ func main() {
 }
 
 func DrawGraphOnly(c *cli.Context) error {
-	template := c.String("template")
-	tpl, err := core.NewFileTemplate(template)
+	tplPath := c.String("template")
+	g, err := graph.NewGraph(graph.WithTemplatePath(tplPath))
 	if err != nil {
 		return err
 	}
-	return tpl.DrawGraphOnly(c.String("draw-graph-only"))
+
+	return g.DrawGraph(c.String("draw-graph-only"))
 }
 
 func RunTemplate(c *cli.Context) error {
-	template := c.String("template")
-	tpl, err := core.NewFileTemplate(template)
-
-	if err != nil {
-		return err
-	}
-	err, errC := tpl.Start(context.Background())
+	tplPath := c.String("template")
+	g, err := graph.NewGraph(graph.WithTemplatePath(tplPath))
+	err, errC := g.Start(context.Background())
 	if err != nil {
 		slog.Error("failed to start template", "error", err)
 		return err
