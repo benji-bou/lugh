@@ -44,6 +44,7 @@ func (wh Docker) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
+// TODO: Refactor docker plugin it is ugly. lot of panic (should handle correctly errors at least.) Rework the input and output management
 func (wh Docker) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
 	hostOpt := client.WithHostFromEnv()
 	if wh.config.Host != "" {
@@ -55,16 +56,6 @@ func (wh Docker) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<
 	}
 	defer cli.Close()
 
-	// reader, err := cli.ImagePull(ctx, wh.config.Image, image.PullOptions{})
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// defer reader.Close()
-	// cli.ImagePull is asynchronous.
-	// The reader needs to be read completely for the pull operation to complete.
-	// If stdout is not required, consider using io.Discard instead of os.Stdout.
-	// io.Copy(os.Stdout, reader)
 	return chantools.NewWithErr(func(cDataStream chan<- *pluginctl.DataStream, eC chan<- error, params ...any) {
 
 		for i := range input {
