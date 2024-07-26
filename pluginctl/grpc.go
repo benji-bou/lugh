@@ -13,7 +13,7 @@ import (
 	status "google.golang.org/grpc/status"
 )
 
-type SecPipelinePluginable interface {
+type SecPluginable interface {
 	GetInputSchema() ([]byte, error)
 	Config(config []byte) error
 	Run(ctx context.Context, input <-chan *DataStream) (<-chan *DataStream, <-chan error)
@@ -124,7 +124,7 @@ type pluginServerDataC struct {
 // Here is the gRPC server that GRPCClient talks to.
 type GRPCServer struct {
 	// This is the real implementation
-	Impl        SecPipelinePluginable
+	Impl        SecPluginable
 	Name        string
 	PluginDataC chan pluginServerDataC
 }

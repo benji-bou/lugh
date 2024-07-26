@@ -36,7 +36,7 @@ func (mp Output) Run(context context.Context, input <-chan *pluginctl.DataStream
 				if !ok {
 					return
 				}
-				slog.Info(fmt.Sprintf("%s", string(i.Data)))
+				fmt.Printf("%s", string(i.Data))
 			}
 		}
 	})

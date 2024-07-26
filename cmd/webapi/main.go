@@ -1,17 +1,22 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"log/slog"
 
 	"os"
 
-	"github.com/benji-bou/SecPipeline/core"
+	"github.com/benji-bou/SecPipeline/core/graph"
+	"github.com/benji-bou/SecPipeline/core/plugin"
 	"github.com/benji-bou/SecPipeline/helper"
 	"github.com/benji-bou/SecPipeline/pluginctl"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"golang.org/x/exp/maps"
 
 	"github.com/urfave/cli/v2"
 )
@@ -52,20 +57,48 @@ func StartAPI(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		tpl, err := core.NewRawTemplate(content)
+		g, err := graph.NewGraph(graph.WithRawTemplate(content))
 		if err != nil {
 			return err
 		}
+		childLessVertex, err := g.GetChildlessVertex()
+		if err != nil {
+			return err
+		}
+		resC := make(chan *pluginctl.DataStream)
+		rawOutputPlugin := plugin.NewRawOutputPlugin(plugin.WithChannel(resC))
 
-		err, errC := tpl.Start(context.Background())
+		outputVertex, err := graph.NewSecVertex(fmt.Sprintf("webapi-output-%s", uuid.NewString()), graph.VertexWithPlugin(rawOutputPlugin))
+		if err != nil {
+			return err
+		}
+		err = g.AddSecVertex(outputVertex, maps.Values(childLessVertex)...)
+		if err != nil {
+			return err
+		}
+		err, errC := g.Start(context.Background())
 		if err != nil {
 			slog.Error("failed to start template", "error", err)
 			return err
 		}
+		buffRes := &bytes.Buffer{}
 		for {
 			select {
+			case data, ok := <-resC:
+				if !ok {
+					resRaw := buffRes.Bytes()
+					slog.Error("res", "data", resRaw)
+					err := c.Blob(200, "text/plain", resRaw)
+					if err != nil {
+						return err
+					}
+				} else {
+					buffRes.Write(data.Data)
+				}
+
 			case e, ok := <-errC:
 				if !ok {
+					slog.Info("end of workflow")
 					return nil
 				}
 				slog.Error("an error occured in a stage", "error", e)

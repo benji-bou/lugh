@@ -18,7 +18,7 @@ var (
 type SecPipelineGRPCPlugin struct {
 	// GRPCPlugin must still implement the Plugin interface
 	plugin.NetRPCUnsupportedPlugin
-	Impl SecPipelinePluginable
+	Impl SecPluginable
 	Name string
 	// Concrete implementation, written in Go. This is only used for plugins
 	// that are written in Go.

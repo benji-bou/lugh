@@ -8,6 +8,7 @@ import (
 	"github.com/benji-bou/SecPipeline/core/template"
 	"github.com/benji-bou/SecPipeline/helper"
 	"github.com/benji-bou/SecPipeline/pluginctl"
+	"github.com/benji-bou/chantools"
 )
 
 type EmptySecPlugin struct {
@@ -29,10 +30,10 @@ type SecPipePluginOption = helper.OptionError[SecPipePlugin]
 
 type SecPipePlugin struct {
 	pipe   Pipeable
-	plugin pluginctl.SecPipelinePluginable
+	plugin pluginctl.SecPluginable
 }
 
-func WithPlugin(plugin pluginctl.SecPipelinePluginable) SecPipePluginOption {
+func WithPlugin(plugin pluginctl.SecPluginable) SecPipePluginOption {
 	return func(configure *SecPipePlugin) error {
 		configure.plugin = plugin
 		return nil
@@ -111,7 +112,7 @@ func WithStage(st template.Stage) SecPipePluginOption {
 	}
 }
 
-func NewSecPipePlugin(opt ...SecPipePluginOption) (pluginctl.SecPipelinePluginable, error) {
+func NewSecPipePlugin(opt ...SecPipePluginOption) (pluginctl.SecPluginable, error) {
 	//use Default Empty pipe (which can be overriden by options) ensuring default non nil pipe here
 	secPlugin := SecPipePlugin{
 		pipe: NewEmptyPipe(),
@@ -130,4 +131,70 @@ func (spp SecPipePlugin) Config(config []byte) error {
 func (spp SecPipePlugin) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
 	pipeOutputC, _ := spp.pipe.Pipe(ctx, input)
 	return spp.plugin.Run(ctx, pipeOutputC)
+}
+
+type RawOutputPluginOption = helper.Option[RawOutputPlugin]
+
+func WithCallback(cb func(data *pluginctl.DataStream)) RawOutputPluginOption {
+	return func(configure *RawOutputPlugin) {
+		configure.cb = cb
+	}
+}
+
+// WithChannel: when this option is set you pass a writable channel which will be used to write the input of the plugin into it
+// in this case RawOutputPlugin takes ownership of the channel and close it when it is done writing it. Means the plugin do not received input anymore
+func WithChannel(dataC chan<- *pluginctl.DataStream) RawOutputPluginOption {
+	return func(configure *RawOutputPlugin) {
+		configure.dataC = dataC
+	}
+}
+
+func NewRawOutputPlugin(opt ...RawOutputPluginOption) RawOutputPlugin {
+
+	rop := helper.Configure(RawOutputPlugin{}, opt...)
+	rop.NoOutputPlugin = NewNoOutputPlugin(WithInputWorker(func(input <-chan *pluginctl.DataStream) {
+		if rop.dataC != nil {
+			defer close(rop.dataC)
+		}
+		for data := range input {
+			if rop.cb != nil {
+				rop.cb(data)
+			}
+			if rop.dataC != nil {
+				rop.dataC <- data
+			}
+		}
+	}))
+	return rop
+}
+
+type RawOutputPlugin struct {
+	NoOutputPlugin
+	cb    func(data *pluginctl.DataStream)
+	dataC chan<- *pluginctl.DataStream
+}
+
+type NoOutputPluginOption = helper.Option[NoOutputPlugin]
+
+func WithInputWorker(worker func(input <-chan *pluginctl.DataStream)) NoOutputPluginOption {
+	return func(configure *NoOutputPlugin) {
+		configure.worker = worker
+	}
+}
+
+func NewNoOutputPlugin(opt ...NoOutputPluginOption) NoOutputPlugin {
+	return helper.Configure(NoOutputPlugin{}, opt...)
+}
+
+type NoOutputPlugin struct {
+	EmptySecPlugin
+	worker func(input <-chan *pluginctl.DataStream)
+}
+
+func (nop NoOutputPlugin) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
+	return chantools.NewWithErr(func(c chan<- *pluginctl.DataStream, eC chan<- error, params ...any) {
+		if nop.worker != nil {
+			nop.worker(input)
+		}
+	})
 }

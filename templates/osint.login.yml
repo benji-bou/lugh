@@ -14,14 +14,10 @@ stages:
     pipe: 
       - goTemplate:
           format: string
-          pattern: "holehe --only-used {{ . }}"
+          pattern: "holehe  {{ . }}"
     config:
       host: unix:///Users/benjamin/.orbstack/run/docker.sock
       image: "holehe:latest"
-  output: 
-    plugin: output
-    parents: 
-      - holehe
-    
+
 
         

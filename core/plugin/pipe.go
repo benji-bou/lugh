@@ -80,15 +80,15 @@ func NewEmptyPipe() Pipeable {
 	})
 }
 
-type PluginPipe struct {
-	to pluginctl.SecPipelinePluginable
+type PipeToPlugin struct {
+	to pluginctl.SecPluginable
 }
 
-func NewPluginPipe(to pluginctl.SecPipelinePluginable) Pipeable {
-	return PluginPipe{to: to}
+func NewPipeToPlugin(to pluginctl.SecPluginable) Pipeable {
+	return PipeToPlugin{to: to}
 }
 
-func (dc PluginPipe) Pipe(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
+func (dc PipeToPlugin) Pipe(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
 	return dc.to.Run(ctx, input)
 }
 

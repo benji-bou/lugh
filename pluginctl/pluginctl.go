@@ -103,7 +103,7 @@ func WithCmdConfig(cmd *exec.Cmd) PluginOption {
 	}
 }
 
-func WithPluginImplementation(plugin SecPipelinePluginable) PluginOption {
+func WithPluginImplementation(plugin SecPluginable) PluginOption {
 	return func(p *Plugin) {
 		p.plugin = SecPipelineGRPCPlugin{Impl: plugin, Name: p.name}
 	}
@@ -129,7 +129,7 @@ func (p Plugin) Serve() {
 	slog.Debug("stop serving plugin", "name", p.name)
 }
 
-func (p *Plugin) Connect() (SecPipelinePluginable, error) {
+func (p *Plugin) Connect() (SecPluginable, error) {
 	log := hclog.Default().Named(p.name)
 	log.SetLevel(hclog.Debug)
 	p.client = plugin.NewClient(&plugin.ClientConfig{
@@ -151,10 +151,10 @@ func (p *Plugin) Connect() (SecPipelinePluginable, error) {
 		return nil, fmt.Errorf("failed to dispense plugin, %w", err)
 	}
 
-	resSec, ok := res.(SecPipelinePluginable)
+	resSec, ok := res.(SecPluginable)
 	if !ok {
-		slog.Error("failed to dispense plugin not a SecPipelinePluginable", "function", "Connect", "Object", "Plugin", "file", "pluginctl.go")
-		return nil, fmt.Errorf("failed to dispense plugin  not a SecPipelinePluginable")
+		slog.Error("failed to dispense plugin not a SecPluginable", "function", "Connect", "Object", "Plugin", "file", "pluginctl.go")
+		return nil, fmt.Errorf("failed to dispense plugin  not a SecPluginable")
 	}
 	return resSec, nil
 }

@@ -37,6 +37,16 @@ func WithTemplate(template template.Template) SecGraphOption {
 	}
 }
 
+func WithRawTemplate(rawTemplate []byte) SecGraphOption {
+	return func(configure *SecGraph) error {
+		tpl, err := template.NewRawTemplate(rawTemplate)
+		if err != nil {
+			return err
+		}
+		return WithTemplate(tpl)(configure)
+	}
+}
+
 func WithTemplatePath(tplPath string) SecGraphOption {
 	return func(configure *SecGraph) error {
 		tpl, err := template.NewFileTemplate(tplPath)
@@ -63,19 +73,33 @@ func (sg *SecGraph) DrawGraph(filepath string) error {
 	return draw.DOT(sg.graph, file)
 }
 
-func (sg *SecGraph) addStagesVertex(t template.Template) error {
-	for stageName, stage := range t.Stages {
-		err := sg.AddSecVertex(stageName, stage)
-		if err != nil {
-			return fmt.Errorf("failed to get graph.secGraph because: %w", err)
+func (sg *SecGraph) GetChildlessVertex() (map[string]SecVertex, error) {
+	res := make(map[string]SecVertex)
+	childsMap, err := sg.graph.AdjacencyMap()
+	if err != nil {
+		panic(err)
+	}
+	for vertexId, childs := range childsMap {
+		if len(childs) == 0 {
+			res[vertexId], err = sg.graph.Vertex(vertexId)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
-	return nil
+	return res, nil
 }
 
-func (sg *SecGraph) addStagesEdges(t template.Template) error {
-	for stageName, stage := range t.Stages {
-		sg.AddEdges(stageName, stage)
+func (sg *SecGraph) AddSecVertex(newVertex SecVertex, parentVertex ...SecVertex) error {
+	err := sg.graph.AddVertex(newVertex)
+	if err != nil {
+		return err
+	}
+	for _, p := range parentVertex {
+		err := sg.graph.AddEdge(p.Name, newVertex.Name)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -97,7 +121,7 @@ func (sg *SecGraph) Start(ctx context.Context) (error, <-chan error) {
 		slog.Debug("current plugin", "plugin", currentPlugin, "vertex", currentVertex.Name)
 		//Merge and Pipes all parents output into current plugins
 		parentOutputC := chantools.Merge(parentOutputCIndex[s]...)
-		currentOutputC, currentErrC := plugin.NewPluginPipe(currentPlugin).Pipe(ctx, parentOutputC)
+		currentOutputC, currentErrC := plugin.NewPipeToPlugin(currentPlugin).Pipe(ctx, parentOutputC)
 		errorsOutputCIndex[s] = currentErrC
 
 		// Get all childs of current Vertex
@@ -126,12 +150,22 @@ func (sg *SecGraph) Start(ctx context.Context) (error, <-chan error) {
 		}
 		return false
 	})
-
+	slog.Debug("Workflow started")
 	return nil, chantools.Merge(maps.Values(errorsOutputCIndex)...)
 }
 
-func (sg *SecGraph) AddSecVertex(name string, stage template.Stage) error {
-	vertex, err := sg.GetSecVertex(name, stage)
+func (sg *SecGraph) addStagesVertex(t template.Template) error {
+	for stageName, stage := range t.Stages {
+		err := sg.addStagedSecVertex(stageName, stage)
+		if err != nil {
+			return fmt.Errorf("failed to get graph.secGraph because: %w", err)
+		}
+	}
+	return nil
+}
+
+func (sg *SecGraph) addStagedSecVertex(name string, stage template.Stage) error {
+	vertex, err := NewSecVertex(name, VertexFromStage(stage))
 	if err != nil {
 		return fmt.Errorf("failed to get SecVertex %s  because: %w", name, err)
 	}
@@ -142,7 +176,14 @@ func (sg *SecGraph) AddSecVertex(name string, stage template.Stage) error {
 	return nil
 }
 
-func (sg *SecGraph) AddEdges(name string, st template.Stage) error {
+func (sg *SecGraph) addStagesEdges(t template.Template) error {
+	for stageName, stage := range t.Stages {
+		sg.addStagedEdges(stageName, stage)
+	}
+	return nil
+}
+
+func (sg *SecGraph) addStagedEdges(name string, st template.Stage) error {
 	if len(st.Parents) == 0 {
 		err := sg.graph.AddEdge(sg.rootVertex.Name, name)
 		if err != nil {
@@ -156,16 +197,4 @@ func (sg *SecGraph) AddEdges(name string, st template.Stage) error {
 		}
 	}
 	return nil
-}
-
-func (sg *SecGraph) GetSecVertex(name string, st template.Stage) (SecVertex, error) {
-	defaultPath := "/Users/benjamin/Private/Projects/SecPipeline/core/secpipeline/bin/plugins"
-	if st.PluginPath == "" {
-		st.PluginPath = defaultPath
-	}
-	plugin, err := plugin.NewSecPipePlugin(plugin.WithStage(st))
-	if err != nil {
-		return SecVertex{}, err
-	}
-	return SecVertex{Name: name, plugin: plugin}, nil
 }
