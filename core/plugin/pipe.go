@@ -12,6 +12,8 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/Masterminds/sprig/v3"
+
 	sectpl "github.com/benji-bou/SecPipeline/core/template"
 	"github.com/benji-bou/SecPipeline/helper"
 	"github.com/benji-bou/SecPipeline/pluginctl"
@@ -135,7 +137,7 @@ func WithTemplate(tmp *template.Template) GoTemplateOption {
 
 func WithTemplatePattern(pattern string) GoTemplateOption {
 	return func(configure *goTemplatePipe) error {
-		tmp, err := template.New("GoTemplatePipePattern").Parse(pattern)
+		tmp, err := template.New("GoTemplatePipePattern").Funcs(sprig.FuncMap()).Parse(pattern)
 		if err != nil {
 			return fmt.Errorf("couldn't parse go template pattern: %w", err)
 		}
@@ -297,7 +299,6 @@ func NewPipe(pipeName string, config yaml.Node) (Pipeable, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to build regex pipe because: %w", err)
 		}
-
 		return NewRegexpPipe(configRegex.Pattern, configRegex.Select), nil
 	case "insert":
 		configInsert := struct {

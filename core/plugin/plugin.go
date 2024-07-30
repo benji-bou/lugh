@@ -29,13 +29,13 @@ func (spp EmptySecPlugin) Run(ctx context.Context, input <-chan *pluginctl.DataS
 type SecPipePluginOption = helper.OptionError[SecPipePlugin]
 
 type SecPipePlugin struct {
-	pipe   Pipeable
-	plugin pluginctl.SecPluginable
+	pluginctl.SecPluginable
+	pipe Pipeable
 }
 
 func WithPlugin(plugin pluginctl.SecPluginable) SecPipePluginOption {
 	return func(configure *SecPipePlugin) error {
-		configure.plugin = plugin
+		configure.SecPluginable = plugin
 		return nil
 	}
 }
@@ -99,7 +99,15 @@ func WithPluginConfig(config []byte) SecPipePluginOption {
 
 func WithStage(st template.Stage) SecPipePluginOption {
 	return func(configure *SecPipePlugin) error {
-		if err := WithPluginNameAndPath(st.Plugin, st.PluginPath)(configure); err != nil {
+		if isInternal, loader := LoadInternalPluginFromStage(st.Plugin); isInternal {
+			plugin, err := loader(st)
+			if err != nil {
+				return err
+			}
+			if err := WithPlugin(plugin)(configure); err != nil {
+				return err
+			}
+		} else if err := WithPluginNameAndPath(st.Plugin, st.PluginPath)(configure); err != nil {
 			return err
 		}
 		if err := WithPipeFromStage(st)(configure); err != nil {
@@ -120,17 +128,9 @@ func NewSecPipePlugin(opt ...SecPipePluginOption) (pluginctl.SecPluginable, erro
 	return helper.ConfigureWithError(secPlugin, opt...)
 }
 
-func (spp SecPipePlugin) GetInputSchema() ([]byte, error) {
-	return spp.plugin.GetInputSchema()
-}
-
-func (spp SecPipePlugin) Config(config []byte) error {
-	return spp.plugin.Config(config)
-}
-
 func (spp SecPipePlugin) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
 	pipeOutputC, _ := spp.pipe.Pipe(ctx, input)
-	return spp.plugin.Run(ctx, pipeOutputC)
+	return spp.SecPluginable.Run(ctx, pipeOutputC)
 }
 
 type RawOutputPluginOption = helper.Option[RawOutputPlugin]
@@ -197,4 +197,28 @@ func (nop NoOutputPlugin) Run(ctx context.Context, input <-chan *pluginctl.DataS
 			nop.worker(input)
 		}
 	})
+}
+
+type ForwardPlugin struct {
+	EmptySecPlugin
+}
+
+func (fp ForwardPlugin) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
+	return input, make(<-chan error)
+}
+
+func NewOnlyPipePlugin(pipe Pipeable) (pluginctl.SecPluginable, error) {
+	return NewSecPipePlugin(WithPipe(pipe), WithPlugin(ForwardPlugin{}))
+}
+
+func LoadInternalPluginFromStage(pluginName string) (bool, func(st template.Stage) (pluginctl.SecPluginable, error)) {
+	switch pluginName {
+	case "forward":
+		return true, func(st template.Stage) (pluginctl.SecPluginable, error) {
+			return ForwardPlugin{}, nil
+		}
+	default:
+		return false, nil
+	}
+
 }

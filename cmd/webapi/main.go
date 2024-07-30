@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"log"
@@ -57,12 +56,15 @@ func StartAPI(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
+		fmt.Printf("%s", string(content))
 		g, err := graph.NewGraph(graph.WithRawTemplate(content))
 		if err != nil {
+			c.JSONBlob(500, []byte(fmt.Sprintf(`{"error": %s}`, err.Error())))
 			return err
 		}
 		childLessVertex, err := g.GetChildlessVertex()
 		if err != nil {
+			c.JSONBlob(500, []byte(fmt.Sprintf(`{"error": %s}`, err.Error())))
 			return err
 		}
 		resC := make(chan *pluginctl.DataStream)
@@ -74,11 +76,13 @@ func StartAPI(c *cli.Context) error {
 		}
 		err = g.AddSecVertex(outputVertex, maps.Values(childLessVertex)...)
 		if err != nil {
+			c.JSONBlob(500, []byte(fmt.Sprintf(`{"error": %s}`, err.Error())))
 			return err
 		}
-		err, errC := g.Start(context.Background())
+		err, errC := g.Start(c.Request().Context())
 		if err != nil {
 			slog.Error("failed to start template", "error", err)
+			c.JSONBlob(500, []byte(fmt.Sprintf(`{"error": %s}`, err.Error())))
 			return err
 		}
 		buffRes := &bytes.Buffer{}
@@ -92,16 +96,20 @@ func StartAPI(c *cli.Context) error {
 					if err != nil {
 						return err
 					}
-				} else {
+					return nil
+				} else if len(data.Data) > 0 {
 					buffRes.Write(data.Data)
+					buffRes.Write([]byte("\n"))
 				}
 
 			case e, ok := <-errC:
 				if !ok {
 					slog.Info("end of workflow")
+					c.JSON(500, "toto")
 					return nil
 				}
 				slog.Error("an error occured in a stage", "error", e)
+				c.JSONBlob(500, []byte(fmt.Sprintf(`{"error": %s}`, e.Error())))
 			}
 		}
 	}))

@@ -6,7 +6,7 @@ stages:
   inputName: 
     plugin: rawinput
     config: 
-      data: "benjamin.bouachour@gmail.com"
+      data: "bouachour.benjamin@gmail.com"
   holehe:
     parents: 
       - inputName
@@ -14,10 +14,20 @@ stages:
     pipe: 
       - goTemplate:
           format: string
-          pattern: "holehe  {{ . }}"
+          pattern: "holehe --only-used --no-color --no-clear {{ . }}"
     config:
       host: unix:///Users/benjamin/.orbstack/run/docker.sock
       image: "holehe:latest"
-
-
-        
+  transformResult: 
+    parents: 
+      - holehe
+    plugin: forward
+    pipe: 
+      - split:
+          sep: "\n"
+      - goTemplate: 
+          pattern: "{{ trim . }}"
+          format: string
+      - regex:
+          pattern: '^\[\+\](.*\..*)$'
+          select: 1
