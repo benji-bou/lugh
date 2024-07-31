@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -15,6 +14,7 @@ import (
 	"github.com/benji-bou/SecPipeline/pluginctl"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"golang.org/x/exp/maps"
 
 	"github.com/urfave/cli/v2"
@@ -49,7 +49,7 @@ func main() {
 }
 
 func StartAPI(c *cli.Context) error {
-	return helper.RunServer(helper.WithPost("/run", func(c echo.Context) error {
+	return helper.RunServer(helper.WithMiddleware(middleware.CORS()), helper.WithPost("/run", func(c echo.Context) error {
 		body := c.Request().Body
 		defer body.Close()
 		content, err := io.ReadAll(body)
@@ -85,21 +85,21 @@ func StartAPI(c *cli.Context) error {
 			c.JSONBlob(500, []byte(fmt.Sprintf(`{"error": %s}`, err.Error())))
 			return err
 		}
-		buffRes := &bytes.Buffer{}
+		buffRes := make([]string, 0)
 		for {
 			select {
 			case data, ok := <-resC:
 				if !ok {
-					resRaw := buffRes.Bytes()
-					slog.Error("res", "data", resRaw)
-					err := c.Blob(200, "text/plain", resRaw)
+					slog.Error("res", "data", buffRes)
+					err := c.JSON(200, struct {
+						Data []string `json:"data"`
+					}{Data: buffRes})
 					if err != nil {
 						return err
 					}
 					return nil
 				} else if len(data.Data) > 0 {
-					buffRes.Write(data.Data)
-					buffRes.Write([]byte("\n"))
+					buffRes = append(buffRes, string(data.Data))
 				}
 
 			case e, ok := <-errC:
