@@ -53,7 +53,9 @@ func (pf PipeFunc) Pipe(ctx context.Context, input <-chan *pluginctl.DataStream)
 
 func NewMapPipe(mapper func(elem *pluginctl.DataStream) *pluginctl.DataStream) Pipeable {
 	return NewWorkerPipe(func(elem *pluginctl.DataStream, c chan<- *pluginctl.DataStream) {
-		c <- mapper(elem)
+		if elem != nil && len(elem.Data) > 0 {
+			c <- mapper(elem)
+		}
 	})
 
 }

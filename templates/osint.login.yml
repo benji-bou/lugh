@@ -31,3 +31,6 @@ stages:
       - regex:
           pattern: '^\[\+\](.*\..*)$'
           select: 1
+      - goTemplate: 
+          format: string
+          pattern: "https://{{ trim  . }}"
