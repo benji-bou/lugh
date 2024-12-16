@@ -122,7 +122,7 @@ func (wh Docker) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<
 }
 
 func main() {
-	helper.SetLog(slog.LevelInfo)
+	helper.SetLog(slog.LevelInfo, true)
 	plugin := pluginctl.NewPlugin("docker",
 		pluginctl.WithPluginImplementation(NewDocker()),
 	)

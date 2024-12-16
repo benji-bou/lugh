@@ -9,6 +9,7 @@ import (
 	"os/signal"
 
 	"github.com/benji-bou/SecPipeline/core/graph"
+	"github.com/benji-bou/SecPipeline/core/template"
 	"github.com/benji-bou/SecPipeline/helper"
 	"github.com/benji-bou/SecPipeline/pluginctl"
 
@@ -25,16 +26,17 @@ func main() {
 				Usage: "Only construct pipeline graph and drow it in DOT notation. To display use `dot -Tsvg <filepath>`",
 			},
 			&cli.StringFlag{
-				Name:    "template",
-				Aliases: []string{"t"},
-				Usage:   "Pipeline template to execute",
+				Name:     "template",
+				Aliases:  []string{"t"},
+				Usage:    "Pipeline template to execute",
+				Required: true,
 			},
 		},
 		Action: func(c *cli.Context) error {
 			defer func() {
 				pluginctl.CleanupClients()
 			}()
-			helper.SetLog(slog.LevelDebug)
+			helper.SetLog(slog.LevelDebug, true)
 			if c.IsSet("draw-graph-only") {
 				return DrawGraphOnly(c)
 			} else {
@@ -49,22 +51,25 @@ func main() {
 
 func DrawGraphOnly(c *cli.Context) error {
 	tplPath := c.String("template")
-	g, err := graph.NewGraph(graph.WithTemplatePath(tplPath))
+	tpl, err := template.NewFileTemplate(tplPath)
 	if err != nil {
 		return err
 	}
+
+	g := graph.NewGraph(graph.WithSecVertexerIterator(tpl.SecVertexIterator()))
 
 	return g.DrawGraph(c.String("draw-graph-only"))
 }
 
 func RunTemplate(c *cli.Context) error {
 	tplPath := c.String("template")
-	g, err := graph.NewGraph(graph.WithTemplatePath(tplPath))
-	err, errC := g.Start(context.Background())
+	tpl, err := template.NewFileTemplate(tplPath)
 	if err != nil {
 		slog.Error("failed to start template", "error", err)
 		return err
 	}
+	g := graph.NewGraph(graph.WithSecVertexerIterator(tpl.SecVertexIterator()))
+	err, errC := g.Start(context.Background())
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, os.Interrupt)
 	for {

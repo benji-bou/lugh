@@ -2,8 +2,10 @@ package template
 
 import (
 	"fmt"
+	"iter"
 	"os"
 
+	"github.com/benji-bou/SecPipeline/core/graph"
 	"gopkg.in/yaml.v3"
 )
 
@@ -15,17 +17,6 @@ type Template struct {
 	Stages      map[string]Stage `yaml:"stages" json:"stages"`
 }
 
-func (t *Template) AddStageToBottom(name string, stage Stage) {
-	parents := make([]string, 0, 1)
-	for name, stage := range t.Stages {
-		if len(stage.Parents) == 0 {
-			parents = append(parents, name)
-		}
-	}
-	stage.Parents = parents
-	t.Stages[name] = stage
-}
-
 func (t Template) Raw() ([]byte, error) {
 	tplBytes, err := yaml.Marshal(t)
 	if err != nil {
@@ -34,7 +25,7 @@ func (t Template) Raw() ([]byte, error) {
 	return tplBytes, nil
 }
 
-func NewFileTemplate(path string) (Template, error) {
+func NewFileTemplate[S Stage](path string) (Template, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return Template{}, err
@@ -42,10 +33,21 @@ func NewFileTemplate(path string) (Template, error) {
 	return NewRawTemplate(content)
 }
 
-func NewRawTemplate(raw []byte) (Template, error) {
+func NewRawTemplate[S Stage](raw []byte) (Template, error) {
 	tpl := Template{}
 	err := yaml.Unmarshal(raw, &tpl)
-
 	return tpl, err
 
+}
+
+func (t Template) SecVertexIterator() iter.Seq[graph.SecVertexer] {
+	return func(yield func(graph.SecVertexer) bool) {
+		for name, stage := range t.Stages {
+			stage.name = name
+			if !yield(stage) {
+				return
+			}
+		}
+
+	}
 }

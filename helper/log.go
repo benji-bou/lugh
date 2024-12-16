@@ -5,9 +5,10 @@ import (
 	"os"
 )
 
-func SetLog(level slog.Level) {
+func SetLog(level slog.Level, showSource bool) {
 	opts := &slog.HandlerOptions{
-		Level: level,
+		Level:     level,
+		AddSource: showSource,
 	}
 	handler := slog.NewTextHandler(os.Stderr, opts)
 	slog.SetDefault(slog.New(handler))

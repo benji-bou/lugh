@@ -1,6 +1,6 @@
 module github.com/benji-bou/SecPipeline
 
-go 1.21.4
+go 1.23.4
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
@@ -18,7 +18,6 @@ require (
 	github.com/swaggest/jsonschema-go v0.3.70
 	github.com/urfave/cli/v2 v2.27.1
 	github.com/zricethezav/gitleaks/v8 v8.18.2
-	golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f
 	golang.org/x/exp/shiny v0.0.0-20240416160154-fe59bbe5cc7f
 	golang.org/x/mobile v0.0.0-20240404231514-09dbf07665ed
 	google.golang.org/grpc v1.64.0
@@ -190,6 +189,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.28.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.24.0 // indirect
+	golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f // indirect
 	golang.org/x/image v0.15.0 // indirect
 	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/net v0.26.0 // indirect

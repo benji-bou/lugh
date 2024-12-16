@@ -67,7 +67,7 @@ func (wh Webhook) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (
 }
 
 func main() {
-	helper.SetLog(slog.LevelError)
+	helper.SetLog(slog.LevelError, true)
 	plugin := pluginctl.NewPlugin("Webhook",
 		pluginctl.WithPluginImplementation(NewWebhook()),
 	)

@@ -94,7 +94,7 @@ func (mp *Katana) Run(context context.Context, input <-chan *pluginctl.DataStrea
 }
 
 func main() {
-	helper.SetLog(slog.LevelError)
+	helper.SetLog(slog.LevelError, true)
 	plugin := pluginctl.NewPlugin("",
 		pluginctl.WithPluginImplementation(NewKatana()),
 	)

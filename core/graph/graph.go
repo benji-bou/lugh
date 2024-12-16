@@ -2,101 +2,114 @@ package graph
 
 import (
 	"context"
-	"fmt"
+	"iter"
 	"log/slog"
 	"os"
+	"slices"
 
-	"golang.org/x/exp/maps"
+	"maps"
 
-	"github.com/benji-bou/SecPipeline/core/plugin"
-	"github.com/benji-bou/SecPipeline/core/template"
 	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/SecPipeline/pluginctl"
 	"github.com/benji-bou/chantools"
 	"github.com/dominikbraun/graph"
 	"github.com/dominikbraun/graph/draw"
-	"github.com/google/uuid"
 )
 
-type SecGraph struct {
-	graph      graph.Graph[string, SecVertex]
-	rootVertex SecVertex
+type IOGraph[K any] struct {
+	graph.Graph[string, IOWorkerVertex[K]]
 }
 
-type SecGraphOption = helper.OptionError[SecGraph]
-
-func WithTemplate(template template.Template) SecGraphOption {
-	return func(configure *SecGraph) error {
-		if err := configure.addStagesVertex(template); err != nil {
-			return err
+func WithIOWorkerVertexIterator[K any](it iter.Seq[IOWorkerVertex[K]]) IOGraphOption[K] {
+	return func(configure *IOGraph[K]) {
+		for secVertex := range it {
+			configure.AddIOWorkerVertex(secVertex)
 		}
-		if err := configure.addStagesEdges(template); err != nil {
-			return err
-		}
-		return nil
 	}
 }
 
-func WithRawTemplate(rawTemplate []byte) SecGraphOption {
-	return func(configure *SecGraph) error {
-		tpl, err := template.NewRawTemplate(rawTemplate)
-		if err != nil {
-			return err
-		}
-		return WithTemplate(tpl)(configure)
-	}
-}
+type IOGraphOption[K any] func(*IOGraph[K])
 
-func WithTemplatePath(tplPath string) SecGraphOption {
-	return func(configure *SecGraph) error {
-		tpl, err := template.NewFileTemplate(tplPath)
-
-		if err != nil {
-			return err
-		}
-		return WithTemplate(tpl)(configure)
-	}
-}
-
-func NewGraph(opt ...SecGraphOption) (*SecGraph, error) {
-	sg := &SecGraph{}
-	sg.graph = graph.New(func(spp SecVertex) string {
-		return spp.Name
+func NewGraph[K any](opt ...IOGraphOption[K]) *IOGraph[K] {
+	sg := &IOGraph[K]{}
+	sg.Graph = graph.New(func(spp IOWorkerVertex[K]) string {
+		return spp.GetName()
 	}, graph.Directed())
-	sg.rootVertex = SecVertex{Name: uuid.NewString(), plugin: plugin.EmptySecPlugin{}}
-	sg.graph.AddVertex(sg.rootVertex)
-	return helper.ConfigurePtrWithError(sg, opt...)
-}
+	for _, o := range opt {
+		if o != nil {
+			o(sg)
 
-func (sg *SecGraph) DrawGraph(filepath string) error {
-	file, _ := os.Create(filepath)
-	return draw.DOT(sg.graph, file)
-}
-
-func (sg *SecGraph) GetChildlessVertex() (map[string]SecVertex, error) {
-	res := make(map[string]SecVertex)
-	childsMap, err := sg.graph.AdjacencyMap()
-	if err != nil {
-		panic(err)
+		}
 	}
-	for vertexId, childs := range childsMap {
-		if len(childs) == 0 {
-			res[vertexId], err = sg.graph.Vertex(vertexId)
+	return sg
+}
+
+func (sg *IOGraph[K]) DrawGraph(filepath string) error {
+	file, _ := os.Create(filepath)
+	return draw.DOT(sg, file)
+}
+
+func (sg *IOGraph[K]) AdjancyVertices() (map[string]map[string]IOWorkerVertex[K], error) {
+	return sg.NeighborVertices(sg.AdjacencyMap)
+}
+
+func (sg *IOGraph[K]) PredecessorVertices() (map[string]map[string]IOWorkerVertex[K], error) {
+	return sg.NeighborVertices(sg.AdjacencyMap)
+}
+
+func (sg *IOGraph[K]) NeighborVertices(orientedNeighborSearch func() (map[string]map[string]graph.Edge[string], error)) (map[string]map[string]IOWorkerVertex[K], error) {
+	verticesMaps, err := orientedNeighborSearch()
+	if err != nil {
+		return nil, err
+	}
+	res := make(map[string]map[string]IOWorkerVertex[K], len(verticesMaps))
+	for currentVertexHash, neighborMap := range verticesMaps {
+		res[currentVertexHash] = make(map[string]IOWorkerVertex[K], len(neighborMap))
+		for neighborName, _ := range neighborMap {
+			v, err := sg.Graph.Vertex(neighborName)
 			if err != nil {
 				return nil, err
 			}
+			res[currentVertexHash][neighborName] = v
 		}
 	}
 	return res, nil
 }
 
-func (sg *SecGraph) AddSecVertex(newVertex SecVertex, parentVertex ...SecVertex) error {
-	err := sg.graph.AddVertex(newVertex)
+func (sg *IOGraph[K]) IterChildlessVertex() iter.Seq[IOWorker[K]] {
+	return sg.iterOrientedNeighborlessVertex(sg.AdjacencyMap)
+}
+
+func (sg *IOGraph[K]) IterParentlessVertex() iter.Seq[IOWorker[K]] {
+	return sg.iterOrientedNeighborlessVertex(sg.PredecessorMap)
+}
+
+func (sg *IOGraph[K]) iterOrientedNeighborlessVertex(orientedNeighborSearch func() (map[string]map[string]graph.Edge[string], error)) iter.Seq[IOWorker[K]] {
+	return func(yield func(IOWorker[K]) bool) {
+		neighborMap, err := orientedNeighborSearch()
+		if err != nil {
+			panic(err)
+		}
+		for vertexId, neighbors := range neighborMap {
+			if len(neighbors) == 0 {
+				vertex, err := sg.Vertex(vertexId)
+				if err != nil {
+					continue
+				}
+				if !yield(vertex) {
+					return
+				}
+			}
+		}
+	}
+}
+
+func (sg *IOGraph[K]) AddIOWorkerVertex(newVertex IOWorkerVertex[K]) error {
+	err := sg.AddVertex(newVertex)
 	if err != nil {
 		return err
 	}
-	for _, p := range parentVertex {
-		err := sg.graph.AddEdge(p.Name, newVertex.Name)
+	for _, p := range newVertex.GetParents() {
+		err := sg.AddEdge(p, newVertex.GetName())
 		if err != nil {
 			return err
 		}
@@ -104,97 +117,51 @@ func (sg *SecGraph) AddSecVertex(newVertex SecVertex, parentVertex ...SecVertex)
 	return nil
 }
 
-func (sg *SecGraph) Start(ctx context.Context) (error, <-chan error) {
-
-	// parentOutputCIndex: store the outputs of parents plugins where key is the child plugin
-	parentOutputCIndex := map[string][]<-chan *pluginctl.DataStream{}
-	errorsOutputCIndex := map[string]<-chan error{}
-
-	graph.BFS(sg.graph, sg.rootVertex.Name, func(s string) bool {
-
-		currentVertex, err := sg.graph.Vertex(s)
-		if err != nil {
-			slog.Error("strange error: current visited vertex not found in the graph", "error", err)
-			return true
-		}
-		currentPlugin := currentVertex.plugin
-		slog.Debug("current plugin", "plugin", currentPlugin, "vertex", currentVertex.Name)
-		//Merge and Pipes all parents output into current plugins
-		parentOutputC := chantools.Merge(parentOutputCIndex[s]...)
-		currentOutputC, currentErrC := plugin.NewPipeToPlugin(currentPlugin).Pipe(ctx, parentOutputC)
-		errorsOutputCIndex[s] = currentErrC
-
-		// Get all childs of current Vertex
-		// Broadcast: create an output chan for each childs that will receive a copy of current plugin output)
-		// save for each child its own chan copy of current plugin output
-
-		childsMap, err := sg.graph.AdjacencyMap()
-		if err != nil {
-			slog.Error(fmt.Sprintf("failed to start template %v", err))
-			return true
-		}
-		childsNodes := childsMap[s]
-		parentOutputCForChilds := chantools.Broadcast(currentOutputC, uint(len(childsNodes)))
-
-		// For each childNodes (of the current node) we register the currentNode output as an input for the childs node
-		// (save it to be able to retrieve it when the child node will be visited)
-		i := 0
-		for n := range childsNodes {
-			childInputC, exist := parentOutputCIndex[n]
-			if !exist {
-				childInputC = make([]<-chan *pluginctl.DataStream, 0, 1)
-			}
-			childInputC = append(childInputC, parentOutputCForChilds[i])
-			parentOutputCIndex[n] = childInputC
-			i++
-		}
-		return false
+func (sg *IOGraph[K]) MergeVertexOutput(vertices iter.Seq[IOWorkerVertex[K]]) <-chan K {
+	resC := helper.Map(vertices, func(vertex IOWorkerVertex[K]) <-chan K {
+		return vertex.Output()
 	})
-	slog.Debug("Workflow started")
-	return nil, chantools.Merge(maps.Values(errorsOutputCIndex)...)
-}
+	return chantools.Merge(slices.Collect(resC)...)
 
-func (sg *SecGraph) addStagesVertex(t template.Template) error {
-	for stageName, stage := range t.Stages {
-		err := sg.addStagedSecVertex(stageName, stage)
-		if err != nil {
-			return fmt.Errorf("failed to get graph.secGraph because: %w", err)
-		}
-	}
-	return nil
 }
+func (sg *IOGraph[K]) Initialize(ctx context.Context) error {
 
-func (sg *SecGraph) addStagedSecVertex(name string, stage template.Stage) error {
-	vertex, err := NewSecVertex(name, VertexFromStage(stage))
+	parentsMap, err := sg.PredecessorVertices()
 	if err != nil {
-		return fmt.Errorf("failed to get SecVertex %s  because: %w", name, err)
+		return err
 	}
-	err = sg.graph.AddVertex(vertex)
-	if err != nil && err != graph.ErrVertexAlreadyExists {
-		return fmt.Errorf("couldn't add SecVertex %s to graph because: %w", name, err)
-	}
-	return nil
-}
-
-func (sg *SecGraph) addStagesEdges(t template.Template) error {
-	for stageName, stage := range t.Stages {
-		sg.addStagedEdges(stageName, stage)
-	}
-	return nil
-}
-
-func (sg *SecGraph) addStagedEdges(name string, st template.Stage) error {
-	if len(st.Parents) == 0 {
-		err := sg.graph.AddEdge(sg.rootVertex.Name, name)
+	for currentVertexHash, parentVertex := range parentsMap {
+		currentVertex, err := sg.Vertex(currentVertexHash)
 		if err != nil {
-			return fmt.Errorf("failed to link rootVertex to  %s  because: %w", name, err)
+			return err
 		}
-	}
-	for _, p := range st.Parents {
-		err := sg.graph.AddEdge(p, name)
-		if err != nil && err != graph.ErrEdgeAlreadyExists {
-			return fmt.Errorf("failed to link %s to  %s because: %w", p, name, err)
-		}
+		currentVertex.SetInput(sg.MergeVertexOutput(maps.Values(parentVertex)))
 	}
 	return nil
 }
+
+func (sg *IOGraph[K]) Run(ctx context.Context) <-chan error {
+	vertexMap, _ := sg.AdjacencyMap()
+	errorsOutputC := make([]<-chan error, 0, len(vertexMap))
+	for vertexHash := range vertexMap {
+		vertex, err := sg.Vertex(vertexHash)
+		if err != nil {
+			slog.Error("Error while start running Io Graph: ", "error", err, "vertexHash", vertexHash)
+			continue
+		}
+		errorsOutputC = append(errorsOutputC, vertex.Run(ctx))
+	}
+	return chantools.Merge(errorsOutputC...)
+}
+
+//TODO: Implement in other way this is not the concern of the graph to add output. should be done outside
+// func (sg *IOGraph[K]) ChanOutputGraph(output chan<- *pluginctl.DataStream) error {
+
+// 	rawOutputPlugin := plugin.NewRawOutputPlugin(plugin.WithChannel(output))
+// 	outputVertex := SecVertex{name: fmt.Sprintf("datastream-chan-output-%s", uuid.NewString()), plugin: rawOutputPlugin, parents: slices.Collect(helper.Map(sg.IterChildlessVertex(), func(elem SecVertexer) string { return elem.GetName() }))}
+// 	err := sg.AddSecVertexer(outputVertex)
+// 	if err != nil {
+// 		return fmt.Errorf("set chan ouptgraph failed: %w", err)
+// 	}
+// 	return nil
+// }

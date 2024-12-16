@@ -63,7 +63,7 @@ func (mp RawFile) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (
 }
 
 func main() {
-	helper.SetLog(slog.LevelError)
+	helper.SetLog(slog.LevelError, true)
 	plugin := pluginctl.NewPlugin("rawfile",
 		pluginctl.WithPluginImplementation(NewRawFile()),
 	)

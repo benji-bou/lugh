@@ -58,7 +58,7 @@ func (mp LeaksPlugin) Run(ctx context.Context, input <-chan *pluginctl.DataStrea
 }
 
 func main() {
-	helper.SetLog(slog.LevelDebug)
+	helper.SetLog(slog.LevelDebug, true)
 
 	p := pluginctl.NewPlugin("leaks",
 		pluginctl.WithPluginImplementation(NewLeaksPlugin()),

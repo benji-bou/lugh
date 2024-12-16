@@ -106,7 +106,7 @@ func main() {
 	go func() {
 		http.ListenAndServe("localhost:6061", nil)
 	}()
-	helper.SetLog(slog.LevelError)
+	helper.SetLog(slog.LevelError, true)
 	plugin := pluginctl.NewPlugin("",
 		pluginctl.WithPluginImplementation(NewMemFilter()),
 	)

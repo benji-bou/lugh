@@ -76,7 +76,7 @@ func (mp Spider) Worker(ctx context.Context, site <-chan string) (<-chan []byte,
 }
 
 func main() {
-	helper.SetLog(slog.LevelError)
+	helper.SetLog(slog.LevelError, true)
 	plugin := pluginctl.NewPlugin("spider",
 		pluginctl.WithPluginImplementation(NewSpider()),
 	)
