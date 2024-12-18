@@ -4,7 +4,7 @@ import (
 	context "context"
 	"errors"
 
-	"github.com/benji-bou/SecPipeline/core/plugins"
+	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	goplugin "github.com/hashicorp/go-plugin"
 	grpc "google.golang.org/grpc"
 )
@@ -18,7 +18,7 @@ var (
 type IOWorkerGRPCPlugin struct {
 	// GRPCPlugin must still implement the Plugin interface
 	goplugin.NetRPCUnsupportedPlugin
-	Impl plugins.IOPluginable
+	Impl pluginapi.IOPluginable
 	Name string
 	// Concrete implementation, written in Go. This is only used for plugins
 	// that are written in Go.
@@ -33,8 +33,5 @@ func (p IOWorkerGRPCPlugin) GRPCServer(broker *goplugin.GRPCBroker, s *grpc.Serv
 }
 
 func (p IOWorkerGRPCPlugin) GRPCClient(ctx context.Context, broker *goplugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
-	return &GRPCClient{
-		Name:   p.Name,
-		client: NewIOWorkerPluginsClient(c),
-	}, nil
+	return NewGRPCClient(NewIOWorkerPluginsClient(c), p.Name), nil
 }

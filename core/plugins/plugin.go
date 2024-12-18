@@ -2,22 +2,20 @@ package plugins
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/benji-bou/SecPipeline/core/graph"
+	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
+	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 )
 
-type IOPluginable interface {
-	Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <-chan error)
-	GetInputSchema() ([]byte, error)
-	Config(config []byte) error
-}
-
 type IOWorkerPlugin struct {
-	decorated IOPluginable
+	decorated pluginapi.IOPluginable
 	graph.DefaultIOWorker[[]byte]
 }
 
-func NewIOWorkerPlugin(decorated IOPluginable) *IOWorkerPlugin {
+func NewIOWorkerPlugin(decorated pluginapi.IOPluginable) *IOWorkerPlugin {
 	return &IOWorkerPlugin{
 		decorated: decorated,
 	}
@@ -30,6 +28,37 @@ func (wp *IOWorkerPlugin) Run(ctx context.Context) <-chan error {
 	return errC
 }
 
+func LoadPlugin(name string, path string, config map[string]any) (pluginapi.IOPluginable, error) {
+	plugin, err := getPluginBuilder(name, path)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to load plugin %s: %v", name, err)
+	}
+	jsonConfig, err := json.Marshal(config)
+	if err != nil {
+
+		return nil, fmt.Errorf("Failed to marshal config for plugin %s: %v", name, err)
+	}
+	err = plugin.Config(jsonConfig)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to configure plugin %s: %v", name, err)
+
+	}
+	return plugin, nil
+}
+
+func getPluginBuilder(name string, path string) (pluginapi.IOPluginable, error) {
+	switch name {
+	case "forward":
+		return ForwardPlugin{}, nil
+	default:
+		if path != "" {
+			return grpc.NewPlugin(name, grpc.WithPath(path)).Connect()
+		}
+		return grpc.NewPlugin(name).Connect()
+	}
+
+}
+
 // import (
 // 	"context"
 // 	"log/slog"
@@ -40,20 +69,20 @@ func (wp *IOWorkerPlugin) Run(ctx context.Context) <-chan error {
 // 	"github.com/benji-bou/chantools"
 // )
 
-// type EmptySecPlugin struct {
-// }
+type EmptyPlugin struct {
+}
 
-// func (spp EmptySecPlugin) GetInputSchema() ([]byte, error) {
-// 	return nil, nil
-// }
+func (spp EmptyPlugin) GetInputSchema() ([]byte, error) {
+	return nil, nil
+}
 
-// func (spp EmptySecPlugin) Config(config []byte) error {
-// 	return nil
-// }
+func (spp EmptyPlugin) Config(config []byte) error {
+	return nil
+}
 
-// func (spp EmptySecPlugin) Run(ctx context.Context, input <-chan *grpc.DataStream) (<-chan *grpc.DataStream, <-chan error) {
-// 	return nil, nil
-// }
+func (spp EmptyPlugin) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+	return nil, nil
+}
 
 // type SecPipePluginOption = helper.Option[SecPipePlugin]
 
@@ -93,14 +122,14 @@ func (wp *IOWorkerPlugin) Run(ctx context.Context) <-chan error {
 // 	return helper.Configure(secPlugin, opt...)
 // }
 
-// func (spp SecPipePlugin) Run(ctx context.Context, input <-chan *grpc.DataStream) (<-chan *grpc.DataStream, <-chan error) {
+// func (spp SecPipePlugin) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
 // 	pipeOutputC, _ := spp.pipe.Pipe(ctx, input)
 // 	return spp.SecPluginable.Run(ctx, pipeOutputC)
 // }
 
 // type RawOutputPluginOption = helper.Option[RawOutputPlugin]
 
-// func WithCallback(cb func(data *grpc.DataStream)) RawOutputPluginOption {
+// func WithCallback(cb func(data []byte)) RawOutputPluginOption {
 // 	return func(configure *RawOutputPlugin) {
 // 		configure.cb = cb
 // 	}
@@ -108,7 +137,7 @@ func (wp *IOWorkerPlugin) Run(ctx context.Context) <-chan error {
 
 // // WithChannel: when this option is set you pass a writable channel which will be used to write the input of the plugin into it
 // // in this case RawOutputPlugin takes ownership of the channel and close it when it is done writing it. Means the plugin do not received input anymore
-// func WithChannel(dataC chan<- *grpc.DataStream) RawOutputPluginOption {
+// func WithChannel(dataC chan<- []byte) RawOutputPluginOption {
 // 	return func(configure *RawOutputPlugin) {
 // 		configure.dataC = dataC
 // 	}
@@ -117,7 +146,7 @@ func (wp *IOWorkerPlugin) Run(ctx context.Context) <-chan error {
 // func NewRawOutputPlugin(opt ...RawOutputPluginOption) RawOutputPlugin {
 
 // 	rop := helper.Configure(RawOutputPlugin{}, opt...)
-// 	rop.NoOutputPlugin = NewNoOutputPlugin(WithInputWorker(func(input <-chan *grpc.DataStream) {
+// 	rop.NoOutputPlugin = NewNoOutputPlugin(WithInputWorker(func(input <-chan []byte) {
 // 		if rop.dataC != nil {
 // 			defer close(rop.dataC)
 // 		}
@@ -135,13 +164,13 @@ func (wp *IOWorkerPlugin) Run(ctx context.Context) <-chan error {
 
 // type RawOutputPlugin struct {
 // 	NoOutputPlugin
-// 	cb    func(data *grpc.DataStream)
-// 	dataC chan<- *grpc.DataStream
+// 	cb    func(data []byte)
+// 	dataC chan<- []byte
 // }
 
 // type NoOutputPluginOption = helper.Option[NoOutputPlugin]
 
-// func WithInputWorker(worker func(input <-chan *grpc.DataStream)) NoOutputPluginOption {
+// func WithInputWorker(worker func(input <-chan []byte)) NoOutputPluginOption {
 // 	return func(configure *NoOutputPlugin) {
 // 		configure.worker = worker
 // 	}
@@ -152,26 +181,26 @@ func (wp *IOWorkerPlugin) Run(ctx context.Context) <-chan error {
 // }
 
 // type NoOutputPlugin struct {
-// 	EmptySecPlugin
-// 	worker func(input <-chan *grpc.DataStream)
+// 	EmptyPlugin
+// 	worker func(input <-chan []byte)
 // }
 
-// func (nop NoOutputPlugin) Run(ctx context.Context, input <-chan *grpc.DataStream) (<-chan *grpc.DataStream, <-chan error) {
-// 	return chantools.NewWithErr(func(c chan<- *grpc.DataStream, eC chan<- error, params ...any) {
+// func (nop NoOutputPlugin) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+// 	return chantools.NewWithErr(func(c chan<- []byte, eC chan<- error, params ...any) {
 // 		if nop.worker != nil {
 // 			nop.worker(input)
 // 		}
 // 	})
 // }
 
-// type ForwardPlugin struct {
-// 	EmptySecPlugin
-// }
+type ForwardPlugin struct {
+	EmptyPlugin
+}
 
-// func (fp ForwardPlugin) Run(ctx context.Context, input <-chan *grpc.DataStream) (<-chan *grpc.DataStream, <-chan error) {
-// 	return input, make(<-chan error)
-// }
+func (fp ForwardPlugin) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+	return input, make(<-chan error)
+}
 
-// func NewOnlyPipePlugin(pipe Pipeable) grpc.SecPluginable {
+// func NewOnlyPipePlugin(pipe Pipeable) pluginapi.IOPluginable {
 // 	return NewSecPipePlugin(WithPipe(pipe), WithPlugin(ForwardPlugin{}))
 // }

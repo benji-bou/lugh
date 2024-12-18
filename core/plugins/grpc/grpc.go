@@ -8,7 +8,7 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/benji-bou/SecPipeline/core/plugins"
+	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/chantools"
 	"github.com/google/uuid"
 	codes "google.golang.org/grpc/codes"
@@ -135,7 +135,7 @@ func (m *GRPCClient) Run(ctx context.Context, input <-chan []byte) (<-chan []byt
 // Here is the gRPC server that GRPCClient talks to.
 type GRPCServer struct {
 	// This is the real implementation
-	Impl   plugins.IOPluginable
+	Impl   pluginapi.IOPluginable
 	inputC chan []byte
 	Name   string
 }

@@ -6,7 +6,6 @@ import (
 
 	"github.com/benji-bou/SecPipeline/core/graph"
 	"github.com/benji-bou/SecPipeline/core/plugins"
-	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"gopkg.in/yaml.v3"
 )
 
@@ -37,7 +36,7 @@ func (st Stage) LoadPlugin(name string) graph.IOWorkerVertex[[]byte] {
 	if st.PluginPath == "" {
 		st.PluginPath = defaultPath
 	}
-	secplugin, err := grpc.NewPlugin(st.Plugin, grpc.WithPath(st.PluginPath)).Connect()
+	secplugin, err := plugins.LoadPlugin(st.Plugin, st.PluginPath, st.Config)
 	if err != nil {
 		log.Fatal("Failed to load plugin: ", err)
 		return nil

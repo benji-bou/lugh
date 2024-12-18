@@ -38,6 +38,7 @@ func NewDefaultIOWorker[K any](decorated RunnableWorker) IOWorker[K] {
 		outputC:        nil,
 		isRunning:      false,
 		isRunningMutex: sync.Mutex{},
+		decorate:       decorated,
 	}
 }
 

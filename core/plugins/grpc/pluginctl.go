@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/benji-bou/SecPipeline/core/plugins"
+	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
@@ -104,7 +104,7 @@ func WithCmdConfig(cmd *exec.Cmd) PluginOption {
 	}
 }
 
-func WithPluginImplementation(plugin plugins.IOPluginable) PluginOption {
+func WithPluginImplementation(plugin pluginapi.IOPluginable) PluginOption {
 	return func(p *Plugin) {
 		p.plugin = IOWorkerGRPCPlugin{Impl: plugin, Name: p.name}
 	}
@@ -130,7 +130,7 @@ func (p Plugin) Serve() {
 	slog.Debug("stop serving plugin", "name", p.name)
 }
 
-func (p *Plugin) Connect() (plugins.IOPluginable, error) {
+func (p *Plugin) Connect() (pluginapi.IOPluginable, error) {
 	log := hclog.Default().Named(p.name)
 	log.SetLevel(hclog.Debug)
 	p.client = plugin.NewClient(&plugin.ClientConfig{
@@ -152,7 +152,7 @@ func (p *Plugin) Connect() (plugins.IOPluginable, error) {
 		return nil, fmt.Errorf("failed to dispense plugin, %w", err)
 	}
 
-	resSec, ok := res.(plugins.IOPluginable)
+	resSec, ok := res.(pluginapi.IOPluginable)
 	if !ok {
 		slog.Error("failed to dispense plugin not a SecPluginable", "function", "Connect", "Object", "Plugin", "file", "grpc.go")
 		return nil, fmt.Errorf("failed to dispense plugin  not a SecPluginable")
