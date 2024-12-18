@@ -11,8 +11,8 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 
+	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/SecPipeline/pluginctl"
 	"github.com/benji-bou/chantools"
 )
 
@@ -66,8 +66,8 @@ func (mp *MemFilter) Config(config []byte) error {
 	return nil
 }
 
-func (mp *MemFilter) Run(context context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
-	return chantools.NewWithErr(func(c chan<- *pluginctl.DataStream, eC chan<- error, params ...any) {
+func (mp *MemFilter) Run(context context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+	return chantools.NewWithErr(func(c chan<- []byte, eC chan<- error, params ...any) {
 		for {
 			select {
 			case <-context.Done():
@@ -76,13 +76,13 @@ func (mp *MemFilter) Run(context context.Context, input <-chan *pluginctl.DataSt
 				if !ok {
 					return
 				}
-				slog.Debug("received data", "data", string(i.Data))
+				slog.Debug("received data", "data", string(i))
 				buff := &bytes.Buffer{}
 				if mp.goTemplateFilter != nil {
-					mp.goTemplateFilter.Execute(buff, i.Data)
+					mp.goTemplateFilter.Execute(buff, i)
 				}
 				if buff.Len() == 0 {
-					buff.Write(i.Data)
+					buff.Write(i)
 				}
 
 				hash := md5.Sum(buff.Bytes())
@@ -107,8 +107,8 @@ func main() {
 		http.ListenAndServe("localhost:6061", nil)
 	}()
 	helper.SetLog(slog.LevelError, true)
-	plugin := pluginctl.NewPlugin("",
-		pluginctl.WithPluginImplementation(NewMemFilter()),
+	plugin := grpc.NewPlugin("distinct",
+		grpc.WithPluginImplementation(NewMemFilter()),
 	)
 	plugin.Serve()
 }

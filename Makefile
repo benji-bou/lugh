@@ -6,7 +6,7 @@ GOMOD=$(GOCMD) mod
 
 # Protobuf parameters
 PROTOC=protoc
-PROTO_DIR=./pluginctl
+PROTO_DIR=./core/plugins/grpc
 PROTO_SRC=$(PROTO_DIR)/plugins.proto
 
 # Directories

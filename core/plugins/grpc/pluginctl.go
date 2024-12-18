@@ -1,4 +1,4 @@
-package plugins
+package grpc
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/benji-bou/SecPipeline/core/plugins"
 	"github.com/benji-bou/SecPipeline/helper"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
@@ -103,15 +104,15 @@ func WithCmdConfig(cmd *exec.Cmd) PluginOption {
 	}
 }
 
-func WithPluginImplementation(plugin SecPluginable) PluginOption {
+func WithPluginImplementation(plugin plugins.IOPluginable) PluginOption {
 	return func(p *Plugin) {
-		p.plugin = SecPipelineGRPCPlugin{Impl: plugin, Name: p.name}
+		p.plugin = IOWorkerGRPCPlugin{Impl: plugin, Name: p.name}
 	}
 }
 
 func WithGRPCPlugin() PluginOption {
 	return func(p *Plugin) {
-		p.plugin = SecPipelineGRPCPlugin{Name: p.name}
+		p.plugin = IOWorkerGRPCPlugin{Name: p.name}
 	}
 }
 
@@ -129,7 +130,7 @@ func (p Plugin) Serve() {
 	slog.Debug("stop serving plugin", "name", p.name)
 }
 
-func (p *Plugin) Connect() (SecPluginable, error) {
+func (p *Plugin) Connect() (plugins.IOPluginable, error) {
 	log := hclog.Default().Named(p.name)
 	log.SetLevel(hclog.Debug)
 	p.client = plugin.NewClient(&plugin.ClientConfig{
@@ -142,18 +143,18 @@ func (p *Plugin) Connect() (SecPluginable, error) {
 	})
 	cp, err := p.client.Client()
 	if err != nil {
-		slog.Error("failed to connect to plugin", "function", "Connect", "Object", "Plugin", "file", "pluginctl.go", "error", err)
+		slog.Error("failed to connect to plugin", "function", "Connect", "Object", "Plugin", "file", "grpc.go", "error", err)
 		return nil, fmt.Errorf("failed to connect to plugin, %w", err)
 	}
 	res, err := cp.Dispense("plugin")
 	if err != nil {
-		slog.Error("failed to dispense plugin", "function", "Connect", "Object", "Plugin", "file", "pluginctl.go", "error", err)
+		slog.Error("failed to dispense plugin", "function", "Connect", "Object", "Plugin", "file", "grpc.go", "error", err)
 		return nil, fmt.Errorf("failed to dispense plugin, %w", err)
 	}
 
-	resSec, ok := res.(SecPluginable)
+	resSec, ok := res.(plugins.IOPluginable)
 	if !ok {
-		slog.Error("failed to dispense plugin not a SecPluginable", "function", "Connect", "Object", "Plugin", "file", "pluginctl.go")
+		slog.Error("failed to dispense plugin not a SecPluginable", "function", "Connect", "Object", "Plugin", "file", "grpc.go")
 		return nil, fmt.Errorf("failed to dispense plugin  not a SecPluginable")
 	}
 	return resSec, nil

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/SecPipeline/pluginctl"
 	"github.com/benji-bou/chantools"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -44,7 +44,7 @@ func (wh Docker) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
-func (wh Docker) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
+func (wh Docker) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
 	hostOpt := client.WithHostFromEnv()
 	if wh.config.Host != "" {
 		hostOpt = client.WithHost(wh.config.Host)
@@ -65,10 +65,10 @@ func (wh Docker) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<
 	// The reader needs to be read completely for the pull operation to complete.
 	// If stdout is not required, consider using io.Discard instead of os.Stdout.
 	// io.Copy(os.Stdout, reader)
-	return chantools.NewWithErr(func(cDataStream chan<- *pluginctl.DataStream, eC chan<- error, params ...any) {
+	return chantools.NewWithErr(func(cDataStream chan<- []byte, eC chan<- error, params ...any) {
 
 		for i := range input {
-			inputCmd := strings.Fields(string(i.Data))
+			inputCmd := strings.Fields(string(i))
 			slog.Info("receive cmd", "cmd", inputCmd)
 			resp, err := cli.ContainerCreate(ctx, &container.Config{
 				Image: wh.config.Image,
@@ -97,14 +97,12 @@ func (wh Docker) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<
 			}
 			byteResC := make(chan []byte)
 			writer := chantools.NewWriter(byteResC)
-			dataStreamRes := chantools.Map(byteResC, func(elem []byte) *pluginctl.DataStream {
-				return &pluginctl.DataStream{Data: elem, ParentSrc: "Docker"}
-			})
+
 			wg := &sync.WaitGroup{}
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				for elem := range dataStreamRes {
+				for elem := range byteResC {
 					cDataStream <- elem
 				}
 				slog.Debug("end of forward data response ")
@@ -123,8 +121,8 @@ func (wh Docker) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<
 
 func main() {
 	helper.SetLog(slog.LevelInfo, true)
-	plugin := pluginctl.NewPlugin("docker",
-		pluginctl.WithPluginImplementation(NewDocker()),
+	plugin := grpc.NewPlugin("docker",
+		grpc.WithPluginImplementation(NewDocker()),
 	)
 	plugin.Serve()
 }

@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"math"
 
+	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/SecPipeline/pluginctl"
 	"github.com/benji-bou/chantools"
 	"github.com/projectdiscovery/katana/pkg/engine/standard"
 	"github.com/projectdiscovery/katana/pkg/output"
@@ -48,19 +48,15 @@ func (mp *Katana) Config(conf []byte) error {
 	return nil
 }
 
-func (mp *Katana) Run(context context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
-	return chantools.NewWithErr(func(c chan<- *pluginctl.DataStream, eC chan<- error, params ...any) {
+func (mp *Katana) Run(context context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+	return chantools.NewWithErr(func(c chan<- []byte, eC chan<- error, params ...any) {
 		mp.option.OnResult = func(r output.Result) {
 			res, err := json.Marshal(r)
 			if err != nil {
 				eC <- fmt.Errorf("failed to Marshal katan output into json, %w", err)
 				return
 			}
-			c <- &pluginctl.DataStream{
-				Data:      res,
-				TotalLen:  int64(len(res)),
-				ParentSrc: "Katana",
-			}
+			c <- res
 		}
 		crawlerOptions, err := types.NewCrawlerOptions(mp.option)
 		if err != nil {
@@ -82,10 +78,10 @@ func (mp *Katana) Run(context context.Context, input <-chan *pluginctl.DataStrea
 				if !ok {
 					return
 				}
-				err = crawler.Crawl(string(i.Data))
+				err = crawler.Crawl(string(i))
 				if err != nil {
-					slog.Error(fmt.Sprintf("could not crawl %s: %s", string(i.Data), err.Error()))
-					// eC <- fmt.Errorf("could not crawl %s: %w", string(i.Data), err)
+					slog.Error(fmt.Sprintf("could not crawl %s: %s", string(i), err.Error()))
+					// eC <- fmt.Errorf("could not crawl %s: %w", string(i), err)
 				}
 
 			}
@@ -95,8 +91,8 @@ func (mp *Katana) Run(context context.Context, input <-chan *pluginctl.DataStrea
 
 func main() {
 	helper.SetLog(slog.LevelError, true)
-	plugin := pluginctl.NewPlugin("",
-		pluginctl.WithPluginImplementation(NewKatana()),
+	plugin := grpc.NewPlugin("Katana",
+		grpc.WithPluginImplementation(NewKatana()),
 	)
 	plugin.Serve()
 }

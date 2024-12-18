@@ -9,8 +9,8 @@ import (
 	"log/slog"
 	"os/exec"
 
+	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/SecPipeline/pluginctl"
 	"github.com/benji-bou/chantools"
 )
 
@@ -43,8 +43,8 @@ func (mp *Shell) Config(conf []byte) error {
 	return nil
 }
 
-func (mp Shell) startCmdAndPipeInput(context context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
-	return chantools.NewWithErr(func(c chan<- *pluginctl.DataStream, eC chan<- error, params ...any) {
+func (mp Shell) startCmdAndPipeInput(context context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+	return chantools.NewWithErr(func(c chan<- []byte, eC chan<- error, params ...any) {
 
 		cmd := exec.Command(mp.cmd, mp.args...)
 		inputCmd, err := cmd.StdinPipe()
@@ -73,12 +73,7 @@ func (mp Shell) startCmdAndPipeInput(context context.Context, input <-chan *plug
 				str, err := reader.ReadString('\n')
 				if len(str) > 0 {
 					slog.Debug("shell output reader", "value", str)
-					res := []byte(str)
-					c <- &pluginctl.DataStream{
-						Data:      res,
-						ParentSrc: "Shell",
-						TotalLen:  int64(len(res)),
-					}
+					c <- []byte(str)
 				}
 				if err != nil {
 					slog.Error("quit shell output reader", "error", err)
@@ -95,23 +90,23 @@ func (mp Shell) startCmdAndPipeInput(context context.Context, input <-chan *plug
 				if !ok {
 					return
 				}
-				inputCmd.Write(i.Data)
+				inputCmd.Write(i)
 			}
 		}
 	})
 }
 
-func (mp Shell) Run(context context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
+func (mp Shell) Run(context context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
 	if mp.cmd != "" {
 		return mp.startCmdAndPipeInput(context, input)
 	}
-	return make(<-chan *pluginctl.DataStream), chantools.Once(errors.New("unsupported behavior"))
+	return make(<-chan []byte), chantools.Once(errors.New("unsupported behavior"))
 }
 
 func main() {
 	helper.SetLog(slog.LevelError, true)
-	plugin := pluginctl.NewPlugin("",
-		pluginctl.WithPluginImplementation(NewShell()),
+	plugin := grpc.NewPlugin("shell",
+		grpc.WithPluginImplementation(NewShell()),
 	)
 	plugin.Serve()
 }

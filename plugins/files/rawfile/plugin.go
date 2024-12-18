@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/SecPipeline/pluginctl"
 	"github.com/benji-bou/chantools"
 )
 
@@ -39,7 +39,7 @@ func (mp *RawFile) Config(config []byte) error {
 	mp.config = configRawFile
 	return nil
 }
-func (mp RawFile) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
+func (mp RawFile) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
 	basePath, err := os.UserHomeDir()
 	if err != nil {
 		basePath = "./"
@@ -54,7 +54,7 @@ func (mp RawFile) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (
 	}
 	defer f.Close()
 	for i := range input {
-		_, err := f.Write(i.Data)
+		_, err := f.Write(i)
 		if err != nil {
 			return nil, chantools.Once(fmt.Errorf("NewRawFile write file plugin failed, %w", err))
 		}
@@ -64,8 +64,8 @@ func (mp RawFile) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (
 
 func main() {
 	helper.SetLog(slog.LevelError, true)
-	plugin := pluginctl.NewPlugin("rawfile",
-		pluginctl.WithPluginImplementation(NewRawFile()),
+	plugin := grpc.NewPlugin("rawfile",
+		grpc.WithPluginImplementation(NewRawFile()),
 	)
 	plugin.Serve()
 }

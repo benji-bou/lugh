@@ -40,14 +40,15 @@ func NewRawTemplate[S Stage](raw []byte) (Template, error) {
 
 }
 
-func (t Template) SecVertexIterator() iter.Seq[graph.SecVertexer] {
-	return func(yield func(graph.SecVertexer) bool) {
+func (t Template) WorkerVertexIterator() iter.Seq[graph.IOWorkerVertex[[]byte]] {
+	return func(yield func(graph.IOWorkerVertex[[]byte]) bool) {
 		for name, stage := range t.Stages {
-			stage.name = name
-			if !yield(stage) {
-				return
+			worker := stage.LoadPlugin(name)
+			if worker != nil {
+				if !yield(worker) {
+					return
+				}
 			}
 		}
-
 	}
 }

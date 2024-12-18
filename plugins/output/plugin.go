@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/SecPipeline/pluginctl"
 	"github.com/benji-bou/chantools"
 )
 
@@ -26,8 +26,8 @@ func (mp Output) Config([]byte) error {
 	return nil
 }
 
-func (mp Output) Run(context context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
-	return chantools.NewWithErr(func(c chan<- *pluginctl.DataStream, eC chan<- error, params ...any) {
+func (mp Output) Run(context context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+	return chantools.NewWithErr(func(c chan<- []byte, eC chan<- error, params ...any) {
 		for {
 			select {
 			case <-context.Done():
@@ -36,7 +36,7 @@ func (mp Output) Run(context context.Context, input <-chan *pluginctl.DataStream
 				if !ok {
 					return
 				}
-				fmt.Printf("%s", string(i.Data))
+				fmt.Printf("%s", string(i))
 			}
 		}
 	})
@@ -44,8 +44,8 @@ func (mp Output) Run(context context.Context, input <-chan *pluginctl.DataStream
 
 func main() {
 	helper.SetLog(slog.LevelDebug, true)
-	plugin := pluginctl.NewPlugin("output",
-		pluginctl.WithPluginImplementation(NewOutput()),
+	plugin := grpc.NewPlugin("output",
+		grpc.WithPluginImplementation(NewOutput()),
 	)
 	plugin.Serve()
 }

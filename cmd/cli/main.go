@@ -9,9 +9,9 @@ import (
 	"os/signal"
 
 	"github.com/benji-bou/SecPipeline/core/graph"
+	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/core/template"
 	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/SecPipeline/pluginctl"
 
 	"github.com/urfave/cli/v2"
 )
@@ -34,7 +34,7 @@ func main() {
 		},
 		Action: func(c *cli.Context) error {
 			defer func() {
-				pluginctl.CleanupClients()
+				grpc.CleanupClients()
 			}()
 			helper.SetLog(slog.LevelDebug, true)
 			if c.IsSet("draw-graph-only") {
@@ -56,7 +56,7 @@ func DrawGraphOnly(c *cli.Context) error {
 		return err
 	}
 
-	g := graph.NewGraph(graph.WithSecVertexerIterator(tpl.SecVertexIterator()))
+	g := graph.NewGraph(graph.WithIOWorkerVertexIterator(tpl.WorkerVertexIterator()))
 
 	return g.DrawGraph(c.String("draw-graph-only"))
 }
@@ -68,8 +68,8 @@ func RunTemplate(c *cli.Context) error {
 		slog.Error("failed to start template", "error", err)
 		return err
 	}
-	g := graph.NewGraph(graph.WithSecVertexerIterator(tpl.SecVertexIterator()))
-	err, errC := g.Start(context.Background())
+	g := graph.NewGraph(graph.WithIOWorkerVertexIterator(tpl.WorkerVertexIterator()))
+	errC := g.Run(context.Background())
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, os.Interrupt)
 	for {

@@ -2,6 +2,7 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"iter"
 	"log/slog"
 	"os"
@@ -142,6 +143,9 @@ func (sg *IOGraph[K]) Initialize(ctx context.Context) error {
 
 func (sg *IOGraph[K]) Run(ctx context.Context) <-chan error {
 	vertexMap, _ := sg.AdjacencyMap()
+	if len(vertexMap) == 0 {
+		return chantools.Once(errors.New("empty graph. No stage loaded"))
+	}
 	errorsOutputC := make([]<-chan error, 0, len(vertexMap))
 	for vertexHash := range vertexMap {
 		vertex, err := sg.Vertex(vertexHash)
@@ -155,7 +159,7 @@ func (sg *IOGraph[K]) Run(ctx context.Context) <-chan error {
 }
 
 //TODO: Implement in other way this is not the concern of the graph to add output. should be done outside
-// func (sg *IOGraph[K]) ChanOutputGraph(output chan<- *pluginctl.DataStream) error {
+// func (sg *IOGraph[K]) ChanOutputGraph(output chan<- *grpc.DataStream) error {
 
 // 	rawOutputPlugin := plugin.NewRawOutputPlugin(plugin.WithChannel(output))
 // 	outputVertex := SecVertex{name: fmt.Sprintf("datastream-chan-output-%s", uuid.NewString()), plugin: rawOutputPlugin, parents: slices.Collect(helper.Map(sg.IterChildlessVertex(), func(elem SecVertexer) string { return elem.GetName() }))}

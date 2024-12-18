@@ -1,9 +1,33 @@
 package plugins
 
-type IOWorkerPluginable interface {
-	graph.IOWorker
+import (
+	"context"
+
+	"github.com/benji-bou/SecPipeline/core/graph"
+)
+
+type IOPluginable interface {
+	Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <-chan error)
 	GetInputSchema() ([]byte, error)
 	Config(config []byte) error
+}
+
+type IOWorkerPlugin struct {
+	decorated IOPluginable
+	graph.DefaultIOWorker[[]byte]
+}
+
+func NewIOWorkerPlugin(decorated IOPluginable) *IOWorkerPlugin {
+	return &IOWorkerPlugin{
+		decorated: decorated,
+	}
+}
+
+func (wp *IOWorkerPlugin) Run(ctx context.Context) <-chan error {
+	outputC, errC := wp.decorated.Run(ctx, wp.GetInput())
+	wp.SetOutput(outputC)
+	wp.UpdateRun(true)
+	return errC
 }
 
 // import (
@@ -12,7 +36,7 @@ type IOWorkerPluginable interface {
 // 	"os"
 
 // 	"github.com/benji-bou/SecPipeline/helper"
-// 	"github.com/benji-bou/SecPipeline/pluginctl"
+// 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 // 	"github.com/benji-bou/chantools"
 // )
 
@@ -27,18 +51,18 @@ type IOWorkerPluginable interface {
 // 	return nil
 // }
 
-// func (spp EmptySecPlugin) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
+// func (spp EmptySecPlugin) Run(ctx context.Context, input <-chan *grpc.DataStream) (<-chan *grpc.DataStream, <-chan error) {
 // 	return nil, nil
 // }
 
 // type SecPipePluginOption = helper.Option[SecPipePlugin]
 
 // type SecPipePlugin struct {
-// 	pluginctl.SecPluginable
+// 	grpc.SecPluginable
 // 	pipe Pipeable
 // }
 
-// func WithPlugin(plugin pluginctl.SecPluginable) SecPipePluginOption {
+// func WithPlugin(plugin grpc.SecPluginable) SecPipePluginOption {
 // 	return func(configure *SecPipePlugin) {
 // 		configure.SecPluginable = plugin
 // 	}
@@ -61,7 +85,7 @@ type IOWorkerPluginable interface {
 // 	return WithPlugin(plugin)
 // }
 
-// func NewSecPipePlugin(opt ...SecPipePluginOption) pluginctl.SecPluginable {
+// func NewSecPipePlugin(opt ...SecPipePluginOption) grpc.SecPluginable {
 // 	//use Default Empty pipe (which can be overriden by options) ensuring default non nil pipe here
 // 	secPlugin := SecPipePlugin{
 // 		pipe: NewEmptyPipe(),
@@ -69,14 +93,14 @@ type IOWorkerPluginable interface {
 // 	return helper.Configure(secPlugin, opt...)
 // }
 
-// func (spp SecPipePlugin) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
+// func (spp SecPipePlugin) Run(ctx context.Context, input <-chan *grpc.DataStream) (<-chan *grpc.DataStream, <-chan error) {
 // 	pipeOutputC, _ := spp.pipe.Pipe(ctx, input)
 // 	return spp.SecPluginable.Run(ctx, pipeOutputC)
 // }
 
 // type RawOutputPluginOption = helper.Option[RawOutputPlugin]
 
-// func WithCallback(cb func(data *pluginctl.DataStream)) RawOutputPluginOption {
+// func WithCallback(cb func(data *grpc.DataStream)) RawOutputPluginOption {
 // 	return func(configure *RawOutputPlugin) {
 // 		configure.cb = cb
 // 	}
@@ -84,7 +108,7 @@ type IOWorkerPluginable interface {
 
 // // WithChannel: when this option is set you pass a writable channel which will be used to write the input of the plugin into it
 // // in this case RawOutputPlugin takes ownership of the channel and close it when it is done writing it. Means the plugin do not received input anymore
-// func WithChannel(dataC chan<- *pluginctl.DataStream) RawOutputPluginOption {
+// func WithChannel(dataC chan<- *grpc.DataStream) RawOutputPluginOption {
 // 	return func(configure *RawOutputPlugin) {
 // 		configure.dataC = dataC
 // 	}
@@ -93,7 +117,7 @@ type IOWorkerPluginable interface {
 // func NewRawOutputPlugin(opt ...RawOutputPluginOption) RawOutputPlugin {
 
 // 	rop := helper.Configure(RawOutputPlugin{}, opt...)
-// 	rop.NoOutputPlugin = NewNoOutputPlugin(WithInputWorker(func(input <-chan *pluginctl.DataStream) {
+// 	rop.NoOutputPlugin = NewNoOutputPlugin(WithInputWorker(func(input <-chan *grpc.DataStream) {
 // 		if rop.dataC != nil {
 // 			defer close(rop.dataC)
 // 		}
@@ -111,13 +135,13 @@ type IOWorkerPluginable interface {
 
 // type RawOutputPlugin struct {
 // 	NoOutputPlugin
-// 	cb    func(data *pluginctl.DataStream)
-// 	dataC chan<- *pluginctl.DataStream
+// 	cb    func(data *grpc.DataStream)
+// 	dataC chan<- *grpc.DataStream
 // }
 
 // type NoOutputPluginOption = helper.Option[NoOutputPlugin]
 
-// func WithInputWorker(worker func(input <-chan *pluginctl.DataStream)) NoOutputPluginOption {
+// func WithInputWorker(worker func(input <-chan *grpc.DataStream)) NoOutputPluginOption {
 // 	return func(configure *NoOutputPlugin) {
 // 		configure.worker = worker
 // 	}
@@ -129,11 +153,11 @@ type IOWorkerPluginable interface {
 
 // type NoOutputPlugin struct {
 // 	EmptySecPlugin
-// 	worker func(input <-chan *pluginctl.DataStream)
+// 	worker func(input <-chan *grpc.DataStream)
 // }
 
-// func (nop NoOutputPlugin) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
-// 	return chantools.NewWithErr(func(c chan<- *pluginctl.DataStream, eC chan<- error, params ...any) {
+// func (nop NoOutputPlugin) Run(ctx context.Context, input <-chan *grpc.DataStream) (<-chan *grpc.DataStream, <-chan error) {
+// 	return chantools.NewWithErr(func(c chan<- *grpc.DataStream, eC chan<- error, params ...any) {
 // 		if nop.worker != nil {
 // 			nop.worker(input)
 // 		}
@@ -144,10 +168,10 @@ type IOWorkerPluginable interface {
 // 	EmptySecPlugin
 // }
 
-// func (fp ForwardPlugin) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
+// func (fp ForwardPlugin) Run(ctx context.Context, input <-chan *grpc.DataStream) (<-chan *grpc.DataStream, <-chan error) {
 // 	return input, make(<-chan error)
 // }
 
-// func NewOnlyPipePlugin(pipe Pipeable) pluginctl.SecPluginable {
+// func NewOnlyPipePlugin(pipe Pipeable) grpc.SecPluginable {
 // 	return NewSecPipePlugin(WithPipe(pipe), WithPlugin(ForwardPlugin{}))
 // }

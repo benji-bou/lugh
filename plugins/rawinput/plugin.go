@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/SecPipeline/pluginctl"
 	"github.com/benji-bou/chantools"
 )
 
@@ -38,19 +38,19 @@ func (wh RawInput) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
-func (wh RawInput) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
-	return chantools.NewWithErr(func(cDataStream chan<- *pluginctl.DataStream, eC chan<- error, params ...any) {
+func (wh RawInput) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+	return chantools.NewWithErr(func(cDataStream chan<- []byte, eC chan<- error, params ...any) {
 		slog.Info("will send data", "data", wh.config.Data)
-		cDataStream <- &pluginctl.DataStream{Data: []byte(wh.config.Data), ParentSrc: "rawInput"}
+		cDataStream <- []byte(wh.config.Data)
 		slog.Info("did send data", "data", wh.config.Data)
-	}, chantools.WithName[*pluginctl.DataStream]("raw-input"))
+	}, chantools.WithName[[]byte]("raw-input"))
 
 }
 
 func main() {
 	helper.SetLog(slog.LevelDebug, true)
-	plugin := pluginctl.NewPlugin("rawInput",
-		pluginctl.WithPluginImplementation(NewRawInput()),
+	plugin := grpc.NewPlugin("rawInput",
+		grpc.WithPluginImplementation(NewRawInput()),
 	)
 	plugin.Serve()
 }

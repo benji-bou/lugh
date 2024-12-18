@@ -1,4 +1,4 @@
-// package plugin
+package plugins
 
 // import (
 // 	"bytes"
@@ -15,13 +15,13 @@
 // 	"github.com/Masterminds/sprig/v3"
 
 // 	"github.com/benji-bou/SecPipeline/helper"
-// 	"github.com/benji-bou/SecPipeline/pluginctl"
+// 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 // 	"github.com/benji-bou/chantools"
 // 	"gopkg.in/yaml.v3"
 // )
 
 // type Pipeable interface {
-// 	Pipe(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error)
+// 	Pipe(ctx context.Context, input <-chan *grpc.DataStream) (<-chan *grpc.DataStream, <-chan error)
 // }
 
 // type ChainedPipe struct {
@@ -32,7 +32,7 @@
 // 	return ChainedPipe{chain}
 // }
 
-// func (cp ChainedPipe) Pipe(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
+// func (cp ChainedPipe) Pipe(ctx context.Context, input <-chan *grpc.DataStream) (<-chan *grpc.DataStream, <-chan error) {
 // 	errorsC := make([]<-chan error, 0, len(cp.chain))
 // 	for _, elem := range cp.chain {
 // 		var errC <-chan error
@@ -44,14 +44,14 @@
 // 	return input, chantools.Merge(errorsC...)
 // }
 
-// type PipeFunc func(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error)
+// type PipeFunc func(ctx context.Context, input <-chan *grpc.DataStream) (<-chan *grpc.DataStream, <-chan error)
 
-// func (pf PipeFunc) Pipe(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
+// func (pf PipeFunc) Pipe(ctx context.Context, input <-chan *grpc.DataStream) (<-chan *grpc.DataStream, <-chan error) {
 // 	return pf(ctx, input)
 // }
 
-// func NewMapPipe(mapper func(elem *pluginctl.DataStream) *pluginctl.DataStream) Pipeable {
-// 	return NewWorkerPipe(func(elem *pluginctl.DataStream, c chan<- *pluginctl.DataStream) {
+// func NewMapPipe(mapper func(elem *grpc.DataStream) *grpc.DataStream) Pipeable {
+// 	return NewWorkerPipe(func(elem *grpc.DataStream, c chan<- *grpc.DataStream) {
 // 		if elem != nil && len(elem.Data) > 0 {
 // 			c <- mapper(elem)
 // 		}
@@ -59,9 +59,9 @@
 
 // }
 
-// func NewWorkerPipe(worker func(elem *pluginctl.DataStream, c chan<- *pluginctl.DataStream)) Pipeable {
-// 	return PipeFunc(func(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
-// 		return chantools.NewWithErr(func(c chan<- *pluginctl.DataStream, eC chan<- error, params ...any) {
+// func NewWorkerPipe(worker func(elem *grpc.DataStream, c chan<- *grpc.DataStream)) Pipeable {
+// 	return PipeFunc(func(ctx context.Context, input <-chan *grpc.DataStream) (<-chan *grpc.DataStream, <-chan error) {
+// 		return chantools.NewWithErr(func(c chan<- *grpc.DataStream, eC chan<- error, params ...any) {
 // 			for {
 // 				select {
 // 				case i, ok := <-input:
@@ -78,20 +78,20 @@
 // }
 
 // func NewEmptyPipe() Pipeable {
-// 	return PipeFunc(func(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
+// 	return PipeFunc(func(ctx context.Context, input <-chan *grpc.DataStream) (<-chan *grpc.DataStream, <-chan error) {
 // 		return input, make(<-chan error)
 // 	})
 // }
 
 // type PipeToPlugin struct {
-// 	to pluginctl.SecPluginable
+// 	to grpc.SecPluginable
 // }
 
-// func NewPipeToPlugin(to pluginctl.SecPluginable) Pipeable {
+// func NewPipeToPlugin(to grpc.SecPluginable) Pipeable {
 // 	return PipeToPlugin{to: to}
 // }
 
-// func (dc PipeToPlugin) Pipe(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
+// func (dc PipeToPlugin) Pipe(ctx context.Context, input <-chan *grpc.DataStream) (<-chan *grpc.DataStream, <-chan error) {
 // 	return dc.to.Run(ctx, input)
 // }
 
@@ -177,7 +177,7 @@
 // 	if tmp.template == nil {
 // 		return NewEmptyPipe()
 // 	}
-// 	return NewMapPipe(func(elem *pluginctl.DataStream) *pluginctl.DataStream {
+// 	return NewMapPipe(func(elem *grpc.DataStream) *grpc.DataStream {
 // 		var dataInput interface{}
 // 		err := tmp.unmarshaler(elem.Data, &dataInput)
 // 		if err != nil {
@@ -190,7 +190,7 @@
 // 			slog.Error("failed to execute template", "error", err, "pipe", "GoTemplatePipe", "inputdata", dataInput)
 // 			return elem
 // 		}
-// 		return &pluginctl.DataStream{
+// 		return &grpc.DataStream{
 // 			Data:       buff.Bytes(),
 // 			ParentSrc:  elem.ParentSrc + "_templated",
 // 			Id:         elem.Id,
@@ -201,13 +201,13 @@
 // }
 
 // func NewBase64Decoder() Pipeable {
-// 	return NewMapPipe(func(elem *pluginctl.DataStream) *pluginctl.DataStream {
+// 	return NewMapPipe(func(elem *grpc.DataStream) *grpc.DataStream {
 // 		res, err := base64.RawStdEncoding.DecodeString(string(elem.Data))
 // 		if err != nil {
 // 			slog.Error("unable to decode base64", "error", err)
 // 			return elem
 // 		}
-// 		return &pluginctl.DataStream{
+// 		return &grpc.DataStream{
 // 			Data:       res,
 // 			ParentSrc:  elem.ParentSrc + "_base64decoded",
 // 			Id:         elem.Id,
@@ -223,7 +223,7 @@
 // 		slog.Warn("regex pipe failed to compile regexp pattern", "error", err)
 // 		return NewEmptyPipe()
 // 	}
-// 	return NewMapPipe(func(elem *pluginctl.DataStream) *pluginctl.DataStream {
+// 	return NewMapPipe(func(elem *grpc.DataStream) *grpc.DataStream {
 
 // 		resAllArr := regex.FindAllSubmatch(elem.Data, -1)
 // 		resArr := make([][]byte, 0, len(resAllArr))
@@ -237,7 +237,7 @@
 // 			}
 // 		}
 // 		res := bytes.Join(resArr, []byte("\n"))
-// 		return &pluginctl.DataStream{
+// 		return &grpc.DataStream{
 // 			Data:       res,
 // 			ParentSrc:  elem.ParentSrc + "_regex",
 // 			Id:         elem.Id,
@@ -249,10 +249,10 @@
 
 // func NewInsertStringPipe(insert string) Pipeable {
 
-// 	return NewMapPipe(func(elem *pluginctl.DataStream) *pluginctl.DataStream {
+// 	return NewMapPipe(func(elem *grpc.DataStream) *grpc.DataStream {
 
 // 		res := append(elem.Data, []byte(insert)...)
-// 		return &pluginctl.DataStream{
+// 		return &grpc.DataStream{
 // 			Data:       res,
 // 			ParentSrc:  elem.ParentSrc + "_regex",
 // 			Id:         elem.Id,
@@ -263,11 +263,11 @@
 // }
 
 // func NewSplitPipe(sep string) Pipeable {
-// 	return NewWorkerPipe(func(elem *pluginctl.DataStream, c chan<- *pluginctl.DataStream) {
+// 	return NewWorkerPipe(func(elem *grpc.DataStream, c chan<- *grpc.DataStream) {
 // 		inputStr := string(elem.Data)
 // 		res := strings.Split(inputStr, sep)
 // 		for _, r := range res {
-// 			resDataStream := &pluginctl.DataStream{
+// 			resDataStream := &grpc.DataStream{
 // 				Data:       []byte(r),
 // 				ParentSrc:  elem.ParentSrc + "_split",
 // 				Id:         elem.Id,

@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"sync"
 
+	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/SecPipeline/pluginctl"
 	"github.com/benji-bou/chantools"
 	spider "github.com/benji-bou/gospider/core"
 )
@@ -35,9 +35,9 @@ func (mp *Spider) Config([]byte) error {
 }
 
 // Run expect a json array of strings listing sites to visists
-func (mp Spider) Run(context context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
+func (mp Spider) Run(context context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
 
-	return chantools.NewWithErr(func(c chan<- *pluginctl.DataStream, eC chan<- error, params ...any) {
+	return chantools.NewWithErr(func(c chan<- []byte, eC chan<- error, params ...any) {
 		inputSiteC := make(chan string)
 		mp.Worker(context, inputSiteC)
 		for {
@@ -46,7 +46,7 @@ func (mp Spider) Run(context context.Context, input <-chan *pluginctl.DataStream
 				return
 			case i := <-input:
 				inputSites := []string{}
-				err := json.Unmarshal(i.Data, &inputSites)
+				err := json.Unmarshal(i, &inputSites)
 				if err != nil {
 					eC <- fmt.Errorf("failed to unmarshal input data: %w", err)
 				} else {
@@ -77,8 +77,8 @@ func (mp Spider) Worker(ctx context.Context, site <-chan string) (<-chan []byte,
 
 func main() {
 	helper.SetLog(slog.LevelError, true)
-	plugin := pluginctl.NewPlugin("spider",
-		pluginctl.WithPluginImplementation(NewSpider()),
+	plugin := grpc.NewPlugin("spider",
+		grpc.WithPluginImplementation(NewSpider()),
 	)
 	plugin.Serve()
 }

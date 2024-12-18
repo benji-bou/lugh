@@ -1,61 +1,32 @@
-package plugins
+package grpc
 
 import (
 	"bytes"
 	context "context"
 	"errors"
+	"fmt"
 	"io"
-	"log"
 	"log/slog"
-	sync "sync"
 
+	"github.com/benji-bou/SecPipeline/core/plugins"
 	"github.com/benji-bou/chantools"
 	"github.com/google/uuid"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
 )
 
-type Pluginable interface {
-	graph.IOWorker
-	GetInputSchema() ([]byte, error)
-	Config(config []byte) error
-}
-
 type GRPCClient struct {
-	client                 SecPipelinePluginsClient
+	client                 IOWorkerPluginsClient
 	Name                   string
-	inputC                 <-chan *DataStream
-	OutputC                <-chan *DataStream
-	outputC                chan *DataStream
-	isRunning              bool
-	isRunningMutex         sync.Mutex
 	clientStreamOutputDone chan struct{}
 }
 
-func NewGRPCClient(client SecPipelinePluginsClient, name string) *GRPCClient {
-	outputC := make(chan *DataStream)
+func NewGRPCClient(client IOWorkerPluginsClient, name string) *GRPCClient {
 	return &GRPCClient{
 		client:                 client,
 		Name:                   name,
-		inputC:                 nil,
-		outputC:                outputC,
 		clientStreamOutputDone: make(chan struct{}),
-		isRunning:              false,
-		isRunningMutex:         sync.Mutex{},
 	}
-}
-
-func (m *GRPCClient) SetInput(inputC <-chan *DataStream) {
-	m.isRunningMutex.Lock()
-	defer m.isRunningMutex.Unlock()
-	if m.isRunning {
-		log.Fatalf("cannot add input after client is running")
-	}
-	m.inputC = inputC
-}
-
-func (m *GRPCClient) Output() <-chan *DataStream {
-	return m.outputC
 }
 
 func (m *GRPCClient) GetInputSchema() ([]byte, error) {
@@ -70,102 +41,103 @@ func (m *GRPCClient) Config(config []byte) error {
 
 }
 
-func (m *GRPCClient) handleStreamOutput(ctx context.Context) <-chan error {
-	return chantools.New(func(errC chan<- error, params ...any) {
-		runloop := NewRunLoop()
-		defer close(m.clientStreamOutputDone)
-		defer close(m.outputC)
-		defer func() {
-			m.isRunningMutex.Lock()
-			defer m.isRunningMutex.Unlock()
-			m.isRunning = false
-		}()
-		stream, err := m.client.Output(ctx, &Empty{})
+func (m *GRPCClient) handleStreamOutput(ctx context.Context, outputC chan<- []byte) error {
+
+	runloop := NewRunLoop()
+	defer close(m.clientStreamOutputDone)
+	stream, err := m.client.Output(ctx, &Empty{})
+	if err != nil {
+		return fmt.Errorf("output stream %s error  %w", m.Name, err)
+	}
+	for {
+		req, err := stream.Recv()
 		if err != nil {
-			slog.Error("output stream error", "err", err, "function", "Run", "Object", "GRPCClient", "name", m.Name)
-			errC <- err
-		}
-		for {
-			req, err := stream.Recv()
-			if err != nil {
-				if errors.Is(err, io.EOF) {
-					slog.Debug("end of stream", "function", "Run", "Object", "GRPCClient", "name", m.Name)
-					return
-				} else if e, ok := status.FromError(err); ok && e.Code() == codes.Canceled {
-					slog.Debug("stream canceled", "function", "Run", "Object", "GRPCClient", "error", err, "name", m.Name)
-					return
-				} else {
-					slog.Error("stream error", "function", "Run", "Object", "GRPCClient", "error", err, "name", m.Name)
-					errC <- err
-					return
-				}
-			}
-			slog.Debug("recv data", "function", "Run", "Object", "GRPCClient", "name", m.Name, "err", err)
-			toForward := runloop.Recv(req)
-			if toForward != nil {
-				m.outputC <- toForward
+			if errors.Is(err, io.EOF) {
+				slog.Debug("end of stream", "function", "Run", "Object", "GRPCClient", "name", m.Name)
+				return nil
+			} else if e, ok := status.FromError(err); ok && e.Code() == codes.Canceled {
+				slog.Debug("stream canceled", "function", "Run", "Object", "GRPCClient", "error", err, "name", m.Name)
+				return nil
+			} else {
+				slog.Error("stream error", "function", "Run", "Object", "GRPCClient", "error", err, "name", m.Name)
+				return fmt.Errorf("stream %s error %w", m.Name, err)
 			}
 		}
-	}, chantools.WithName[error](m.Name+"-"+uuid.NewString()))
+		slog.Debug("recv data", "function", "Run", "Object", "GRPCClient", "name", m.Name, "err", err)
+		toForward := runloop.Recv(req)
+		if toForward != nil {
+			outputC <- toForward.Data
+		}
+	}
 }
 
-func (m *GRPCClient) handleStreamInput(ctx context.Context) <-chan error {
-	return chantools.New(func(errC chan<- error, params ...any) {
-		outputDone := false
-		stream, err := m.client.Input(ctx)
-		// isClosed := false
-		if err != nil {
-			slog.Debug("failed to retrieve client input stream", "name", m.Name, "err", err)
-			return
-		}
-		for {
-			select {
-			case _, ok := <-m.clientStreamOutputDone:
-				// `!ok` here `clientStreamOutputDone` is closed means that we won't receive anymore data from the plugin server.
-				// Not necessary to send data to the plugin server if no response will ever be sent back
-				if !ok {
-					outputDone = true
+func (m *GRPCClient) handleStreamInput(ctx context.Context, inputC <-chan []byte) error {
 
-					// isClosed = true
-					//Here we do not return to prevent blocking the input channel and creating a go routine zombie on the other side of the channel
-					//TODO: Handle properly the `chantools.Broadcast` cancelation of listen with some kind of context
+	outputDone := false
+	stream, err := m.client.Input(ctx)
+	// isClosed := false
+	runloop := NewRunLoop()
+	if err != nil {
+		return fmt.Errorf("failed to retrieve client input stream named %s: %w", m.Name, err)
+	}
+	for {
+		select {
+		case _, ok := <-m.clientStreamOutputDone:
+			// `!ok` here `clientStreamOutputDone` is closed means that we won't receive anymore data from the plugin server.
+			// Not necessary to send data to the plugin server if no response will ever be sent back
+			if !ok {
+				outputDone = true
+
+				// isClosed = true
+				//Here we do not return to prevent blocking the input channel and creating a go routine zombie on the other side of the channel
+				//TODO: Handle properly the `chantools.Broadcast` cancelation of listen with some kind of context
+			}
+		case inputStreamData, ok := <-inputC:
+			// `!ok` no more input will be recieved we can safely close the stream and return
+			if !ok {
+				err := stream.CloseSend()
+				if err != nil {
+					return fmt.Errorf("failed to close client stream named v%s: %w", m.Name, err)
 				}
-			case inputStreamData, ok := <-m.inputC:
-				// `!ok` no more input will be recieved we can safely close the stream and return
-				if !ok {
-					err := stream.CloseSend()
-					if err != nil {
-						slog.Debug("failed to close client stream", "name", m.Name, "err", err)
-						errC <- err
-					}
-					return
-				}
-				if !outputDone {
-					err := stream.Send(inputStreamData)
+				return nil
+			}
+			if !outputDone {
+				for _, dataToSend := range runloop.Send(&DataStream{Data: inputStreamData, ParentSrc: m.Name}) {
+					err := stream.Send(dataToSend)
 					if err != nil {
 						slog.Error("stream send error", "function", "Run", "Object", "GRPCClient", "error", err, "name", m.Name)
 					}
-				} else {
-					slog.Debug("output stream is Done but keep receiving input data. Doing nothing", "function", "Run", "Object", "GRPCClient", "error", err, "name", m.Name)
 				}
+
+			} else {
+				slog.Debug("output stream is Done but keep receiving input data. Doing nothing", "function", "Run", "Object", "GRPCClient", "error", err, "name", m.Name)
 			}
 		}
-	})
+	}
 }
-func (m *GRPCClient) Run(ctx context.Context) <-chan error {
-	m.isRunningMutex.Lock()
-	m.isRunning = true
-	m.isRunningMutex.Unlock()
-	outputErrC := m.handleStreamOutput(ctx)
-	inputErrC := m.handleStreamInput(ctx)
-	return chantools.Merge(outputErrC, inputErrC)
+
+func (m *GRPCClient) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+	outputC, errOutputC := chantools.NewWithErr(func(c chan<- []byte, eC chan<- error, params ...any) {
+		err := m.handleStreamOutput(ctx, c)
+		if err != nil {
+			eC <- err
+		}
+	})
+	errInputC := chantools.New(func(eC chan<- error, params ...any) {
+		err := m.handleStreamInput(ctx, input)
+		if err != nil {
+			eC <- err
+		}
+	})
+	return outputC, chantools.Merge(errOutputC, errInputC)
 }
 
 // Here is the gRPC server that GRPCClient talks to.
 type GRPCServer struct {
 	// This is the real implementation
-	Impl SecPluginable
-	Name string
+	Impl   plugins.IOPluginable
+	inputC chan []byte
+	Name   string
 }
 
 func (m *GRPCServer) GetInputSchema(context.Context, *Empty) (*InputSchema, error) {
@@ -177,12 +149,10 @@ func (m *GRPCServer) Config(ctx context.Context, config *RunInputConfig) (*Empty
 	return &Empty{}, m.Impl.Config(config.Config)
 }
 
-func (m *GRPCServer) Input(stream SecPipelinePlugins_InputServer) error {
-	inputDataC := make(chan *DataStream)
-	defer close(inputDataC)
+func (m *GRPCServer) Input(stream IOWorkerPlugins_InputServer) error {
+	m.inputC = make(chan []byte)
+	defer close(m.inputC)
 	runLoop := NewRunLoop()
-	m.Impl.SetInput(inputDataC)
-
 	for {
 		req, err := stream.Recv()
 		if err != nil {
@@ -200,25 +170,24 @@ func (m *GRPCServer) Input(stream SecPipelinePlugins_InputServer) error {
 		slog.Debug("recv data", "function", "Run", "Object", "GRPCServer", "name", m.Name)
 		toForward := runLoop.Recv(req)
 		if toForward != nil {
-			inputDataC <- toForward
+			m.inputC <- toForward.Data
 		}
 	}
 }
 
-func (m *GRPCServer) Output(empty *Empty, stream SecPipelinePlugins_OutputServer) error {
+func (m *GRPCServer) Output(empty *Empty, stream IOWorkerPlugins_OutputServer) error {
 
 	runLoop := NewRunLoop()
-	outputDataC := m.Impl.Output()
-	outputErrC := m.Impl.Run(context.Background())
+	outputRawC, outputErrC := m.Impl.Run(context.Background(), m.inputC)
 
 	for {
 		select {
-		case data, ok := <-outputDataC:
+		case data, ok := <-outputRawC:
 			if !ok {
 				slog.Debug("data chan closed", "function", "Run", "Object", "GRPCServer", "name", m.Name)
 				return nil
 			}
-			for _, d := range runLoop.Send(data) {
+			for _, d := range runLoop.Send(&DataStream{Data: data, ParentSrc: m.Name}) {
 				slog.Debug("sending data over stream", "function", "Run", "Object", "GRPCServer", "data", data, "name", m.Name)
 				err := stream.Send(d)
 				if err != nil {
@@ -240,8 +209,8 @@ func (m *GRPCServer) Output(empty *Empty, stream SecPipelinePlugins_OutputServer
 
 }
 
-func (m *GRPCServer) mustEmbedUnimplementedSecPipelinePluginsServer() {
-	slog.Info("inside GRPCServer mustEmbedUnimplementedSecPipelinePluginsServer")
+func (m *GRPCServer) mustEmbedUnimplementedIOWorkerPluginsServer() {
+	slog.Info("inside GRPCServer mustEmbedUnimplementedIOWorkerPluginsServer")
 }
 
 type RunLoop struct {

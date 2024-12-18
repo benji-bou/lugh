@@ -7,8 +7,8 @@ import (
 	"io"
 	"log/slog"
 
+	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/SecPipeline/pluginctl"
 	"github.com/benji-bou/chantools"
 	"github.com/labstack/echo/v4"
 )
@@ -41,8 +41,8 @@ func (wh Webhook) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
-func (wh Webhook) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
-	return chantools.NewWithErr(func(cDataStream chan<- *pluginctl.DataStream, eC chan<- error, params ...any) {
+func (wh Webhook) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+	return chantools.NewWithErr(func(cDataStream chan<- []byte, eC chan<- error, params ...any) {
 		method := wh.config.Method
 		if method == "" {
 			method = "POST"
@@ -58,7 +58,7 @@ func (wh Webhook) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (
 			if err != nil {
 				eC <- err
 			} else {
-				cDataStream <- &pluginctl.DataStream{Data: bRaw, ParentSrc: "webhook"}
+				cDataStream <- bRaw
 			}
 			return nil
 		}))
@@ -68,8 +68,8 @@ func (wh Webhook) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (
 
 func main() {
 	helper.SetLog(slog.LevelError, true)
-	plugin := pluginctl.NewPlugin("Webhook",
-		pluginctl.WithPluginImplementation(NewWebhook()),
+	plugin := grpc.NewPlugin("webhook",
+		grpc.WithPluginImplementation(NewWebhook()),
 	)
 	plugin.Serve()
 }

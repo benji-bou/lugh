@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/SecPipeline/pluginctl"
 
 	martian "github.com/benji-bou/SecPipeline/plugins/proxy/martianProxy/martian"
 	"github.com/benji-bou/chantools"
@@ -30,12 +30,12 @@ func NewMartianPlugin() *MartianPlugin {
 	r := jsonschema.Reflector{}
 	schema, err := r.Reflect(MartianInputConfig{})
 	if err != nil {
-		slog.Error(pluginctl.ErrJsonSchemaConvertion.Error(), "plugin", "MartianHttpProxy", "type", "MartianInputConfig", "errors", err)
+		slog.Error(grpc.ErrJsonSchemaConvertion.Error(), "plugin", "MartianHttpProxy", "type", "MartianInputConfig", "errors", err)
 		os.Exit(-1)
 	}
 	j, err := json.Marshal(schema)
 	if err != nil {
-		slog.Error(pluginctl.ErrJsonConvertion.Error(), "plugin", "MartianHttpProxy", "type", "MartianInputConfig", "errors", err)
+		slog.Error(grpc.ErrJsonConvertion.Error(), "plugin", "MartianHttpProxy", "type", "MartianInputConfig", "errors", err)
 		os.Exit(-1)
 	}
 	return &MartianPlugin{inputFormat: j}
@@ -56,11 +56,11 @@ func (mp *MartianPlugin) Config(config []byte) error {
 	return nil
 }
 
-func (mp MartianPlugin) Run(ctx context.Context, _ <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
+func (mp MartianPlugin) Run(ctx context.Context, _ <-chan []byte) (<-chan []byte, <-chan error) {
 	slog.Info("MartianPlugin run")
 
 	// We use the option WithNonManagedChannel because we want let the chantools.NewWriter handle the close
-	outputC, outputErrC := chantools.NewWithErr(func(dataC chan<- []byte, errC chan<- error, params ...any) {
+	return chantools.NewWithErr(func(dataC chan<- []byte, errC chan<- error, params ...any) {
 		slog.Debug("started routine", "function", "Run", "plugin", "MartianPlugin")
 		wC := chantools.NewWriter(dataC)
 		defer wC.Close()
@@ -86,16 +86,13 @@ func (mp MartianPlugin) Run(ctx context.Context, _ <-chan *pluginctl.DataStream)
 		slog.Debug("martian proxy stoped", "function", "Run", "plugin", "MartianPlugin")
 	}, chantools.WithNonManagedChannel[[]byte](), chantools.WithName[[]byte]("martianProxyRoutine"))
 
-	return chantools.Map(outputC, func(input []byte) *pluginctl.DataStream {
-		return &pluginctl.DataStream{Data: input, ParentSrc: "martianProxy"}
-	}, chantools.WithName[*pluginctl.DataStream]("MAPmartianProxyRoutine")), outputErrC
 }
 
 func main() {
 
 	helper.SetLog(slog.LevelDebug, true)
-	plugin := pluginctl.NewPlugin("martianProxy",
-		pluginctl.WithPluginImplementation(NewMartianPlugin()),
+	plugin := grpc.NewPlugin("martianProxy",
+		grpc.WithPluginImplementation(NewMartianPlugin()),
 	)
 	plugin.Serve()
 }
