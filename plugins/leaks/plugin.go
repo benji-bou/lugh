@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
+	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
 	"github.com/benji-bou/chantools"
 	"github.com/zricethezav/gitleaks/v8/detect"
@@ -58,7 +59,7 @@ func main() {
 	helper.SetLog(slog.LevelDebug, true)
 
 	p := grpc.NewPlugin("leaks",
-		grpc.WithPluginImplementation(NewLeaksPlugin()),
+		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromRunner(NewLeaksPlugin())),
 	)
 
 	p.Serve()

@@ -12,6 +12,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
+	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
 	"github.com/benji-bou/chantools"
 )
@@ -108,7 +109,7 @@ func main() {
 	}()
 	helper.SetLog(slog.LevelError, true)
 	plugin := grpc.NewPlugin("distinct",
-		grpc.WithPluginImplementation(NewMemFilter()),
+		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromRunner(NewMemFilter())),
 	)
 	plugin.Serve()
 }

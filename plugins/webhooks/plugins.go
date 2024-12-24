@@ -8,6 +8,7 @@ import (
 	"log/slog"
 
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
+	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
 	"github.com/benji-bou/chantools"
 	"github.com/labstack/echo/v4"
@@ -69,7 +70,7 @@ func (wh Webhook) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, 
 func main() {
 	helper.SetLog(slog.LevelError, true)
 	plugin := grpc.NewPlugin("webhook",
-		grpc.WithPluginImplementation(NewWebhook()),
+		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromRunner(NewWebhook())),
 	)
 	plugin.Serve()
 }

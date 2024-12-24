@@ -30,4 +30,5 @@ service IOWorkerPlugins {
   rpc Config(RunInputConfig)   returns (Empty);
   rpc Input(stream DataStream)   returns (Empty);
   rpc Output(Empty)  returns (stream DataStream);
+  rpc Run(Empty)  returns (stream Error);
 }

@@ -10,6 +10,7 @@ import (
 	"os/exec"
 
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
+	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
 	"github.com/benji-bou/chantools"
 )
@@ -106,7 +107,7 @@ func (mp Shell) Run(context context.Context, input <-chan []byte) (<-chan []byte
 func main() {
 	helper.SetLog(slog.LevelError, true)
 	plugin := grpc.NewPlugin("shell",
-		grpc.WithPluginImplementation(NewShell()),
+		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromRunner(NewShell())),
 	)
 	plugin.Serve()
 }

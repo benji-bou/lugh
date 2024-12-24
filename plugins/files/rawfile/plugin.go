@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
+	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
 	"github.com/benji-bou/chantools"
 )
@@ -65,7 +66,7 @@ func (mp RawFile) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, 
 func main() {
 	helper.SetLog(slog.LevelError, true)
 	plugin := grpc.NewPlugin("rawfile",
-		grpc.WithPluginImplementation(NewRawFile()),
+		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromRunner(NewRawFile())),
 	)
 	plugin.Serve()
 }

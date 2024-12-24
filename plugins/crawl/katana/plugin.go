@@ -8,6 +8,7 @@ import (
 	"math"
 
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
+	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
 	"github.com/benji-bou/chantools"
 	"github.com/projectdiscovery/katana/pkg/engine/standard"
@@ -92,7 +93,7 @@ func (mp *Katana) Run(context context.Context, input <-chan []byte) (<-chan []by
 func main() {
 	helper.SetLog(slog.LevelError, true)
 	plugin := grpc.NewPlugin("Katana",
-		grpc.WithPluginImplementation(NewKatana()),
+		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromRunner(NewKatana())),
 	)
 	plugin.Serve()
 }

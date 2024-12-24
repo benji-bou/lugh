@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
+	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
 	"github.com/benji-bou/chantools"
 	spider "github.com/benji-bou/gospider/core"
@@ -78,7 +79,7 @@ func (mp Spider) Worker(ctx context.Context, site <-chan string) (<-chan []byte,
 func main() {
 	helper.SetLog(slog.LevelError, true)
 	plugin := grpc.NewPlugin("spider",
-		grpc.WithPluginImplementation(NewSpider()),
+		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromRunner(NewSpider())),
 	)
 	plugin.Serve()
 }

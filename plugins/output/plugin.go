@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
+	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
 	"github.com/benji-bou/chantools"
 )
@@ -45,7 +46,7 @@ func (mp Output) Run(context context.Context, input <-chan []byte) (<-chan []byt
 func main() {
 	helper.SetLog(slog.LevelDebug, true)
 	plugin := grpc.NewPlugin("output",
-		grpc.WithPluginImplementation(NewOutput()),
+		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromRunner(NewOutput())),
 	)
 	plugin.Serve()
 }

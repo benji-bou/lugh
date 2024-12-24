@@ -22,6 +22,7 @@ type IOWorkerPluginsClient interface {
 	Config(ctx context.Context, in *RunInputConfig, opts ...grpc.CallOption) (*Empty, error)
 	Input(ctx context.Context, opts ...grpc.CallOption) (IOWorkerPlugins_InputClient, error)
 	Output(ctx context.Context, in *Empty, opts ...grpc.CallOption) (IOWorkerPlugins_OutputClient, error)
+	Run(ctx context.Context, in *Empty, opts ...grpc.CallOption) (IOWorkerPlugins_RunClient, error)
 }
 
 type iOWorkerPluginsClient struct {
@@ -116,6 +117,38 @@ func (x *iOWorkerPluginsOutputClient) Recv() (*DataStream, error) {
 	return m, nil
 }
 
+func (c *iOWorkerPluginsClient) Run(ctx context.Context, in *Empty, opts ...grpc.CallOption) (IOWorkerPlugins_RunClient, error) {
+	stream, err := c.cc.NewStream(ctx, &IOWorkerPlugins_ServiceDesc.Streams[2], "/grpc.IOWorkerPlugins/Run", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &iOWorkerPluginsRunClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type IOWorkerPlugins_RunClient interface {
+	Recv() (*Error, error)
+	grpc.ClientStream
+}
+
+type iOWorkerPluginsRunClient struct {
+	grpc.ClientStream
+}
+
+func (x *iOWorkerPluginsRunClient) Recv() (*Error, error) {
+	m := new(Error)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // IOWorkerPluginsServer is the server API for IOWorkerPlugins service.
 // All implementations must embed UnimplementedIOWorkerPluginsServer
 // for forward compatibility
@@ -124,6 +157,7 @@ type IOWorkerPluginsServer interface {
 	Config(context.Context, *RunInputConfig) (*Empty, error)
 	Input(IOWorkerPlugins_InputServer) error
 	Output(*Empty, IOWorkerPlugins_OutputServer) error
+	Run(*Empty, IOWorkerPlugins_RunServer) error
 	mustEmbedUnimplementedIOWorkerPluginsServer()
 }
 
@@ -142,6 +176,9 @@ func (UnimplementedIOWorkerPluginsServer) Input(IOWorkerPlugins_InputServer) err
 }
 func (UnimplementedIOWorkerPluginsServer) Output(*Empty, IOWorkerPlugins_OutputServer) error {
 	return status.Errorf(codes.Unimplemented, "method Output not implemented")
+}
+func (UnimplementedIOWorkerPluginsServer) Run(*Empty, IOWorkerPlugins_RunServer) error {
+	return status.Errorf(codes.Unimplemented, "method Run not implemented")
 }
 func (UnimplementedIOWorkerPluginsServer) mustEmbedUnimplementedIOWorkerPluginsServer() {}
 
@@ -239,6 +276,27 @@ func (x *iOWorkerPluginsOutputServer) Send(m *DataStream) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _IOWorkerPlugins_Run_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(IOWorkerPluginsServer).Run(m, &iOWorkerPluginsRunServer{stream})
+}
+
+type IOWorkerPlugins_RunServer interface {
+	Send(*Error) error
+	grpc.ServerStream
+}
+
+type iOWorkerPluginsRunServer struct {
+	grpc.ServerStream
+}
+
+func (x *iOWorkerPluginsRunServer) Send(m *Error) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // IOWorkerPlugins_ServiceDesc is the grpc.ServiceDesc for IOWorkerPlugins service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -264,6 +322,11 @@ var IOWorkerPlugins_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "Output",
 			Handler:       _IOWorkerPlugins_Output_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "Run",
+			Handler:       _IOWorkerPlugins_Run_Handler,
 			ServerStreams: true,
 		},
 	},

@@ -54,7 +54,7 @@ func (sg *IOGraph[K]) AdjancyVertices() (map[string]map[string]IOWorkerVertex[K]
 }
 
 func (sg *IOGraph[K]) PredecessorVertices() (map[string]map[string]IOWorkerVertex[K], error) {
-	return sg.NeighborVertices(sg.AdjacencyMap)
+	return sg.NeighborVertices(sg.PredecessorMap)
 }
 
 func (sg *IOGraph[K]) NeighborVertices(orientedNeighborSearch func() (map[string]map[string]graph.Edge[string], error)) (map[string]map[string]IOWorkerVertex[K], error) {
@@ -65,7 +65,7 @@ func (sg *IOGraph[K]) NeighborVertices(orientedNeighborSearch func() (map[string
 	res := make(map[string]map[string]IOWorkerVertex[K], len(verticesMaps))
 	for currentVertexHash, neighborMap := range verticesMaps {
 		res[currentVertexHash] = make(map[string]IOWorkerVertex[K], len(neighborMap))
-		for neighborName, _ := range neighborMap {
+		for neighborName := range neighborMap {
 			v, err := sg.Graph.Vertex(neighborName)
 			if err != nil {
 				return nil, err
@@ -119,13 +119,13 @@ func (sg *IOGraph[K]) AddIOWorkerVertex(newVertex IOWorkerVertex[K]) error {
 }
 
 func (sg *IOGraph[K]) MergeVertexOutput(vertices iter.Seq[IOWorkerVertex[K]]) <-chan K {
-	resC := helper.Map(vertices, func(vertex IOWorkerVertex[K]) <-chan K {
+	resC := helper.IterMap(vertices, func(vertex IOWorkerVertex[K]) <-chan K {
 		return vertex.Output()
 	})
 	return chantools.Merge(slices.Collect(resC)...)
 
 }
-func (sg *IOGraph[K]) Initialize(ctx context.Context) error {
+func (sg *IOGraph[K]) initialize() error {
 
 	parentsMap, err := sg.PredecessorVertices()
 	if err != nil {
@@ -141,7 +141,7 @@ func (sg *IOGraph[K]) Initialize(ctx context.Context) error {
 	return nil
 }
 
-func (sg *IOGraph[K]) Run(ctx context.Context) <-chan error {
+func (sg *IOGraph[K]) start(ctx context.Context) <-chan error {
 	vertexMap, _ := sg.AdjacencyMap()
 	if len(vertexMap) == 0 {
 		return chantools.Once(errors.New("empty graph. No stage loaded"))
@@ -156,6 +156,14 @@ func (sg *IOGraph[K]) Run(ctx context.Context) <-chan error {
 		errorsOutputC = append(errorsOutputC, vertex.Run(ctx))
 	}
 	return chantools.Merge(errorsOutputC...)
+}
+
+func (sg *IOGraph[K]) Run(ctx context.Context) <-chan error {
+	err := sg.initialize()
+	if err != nil {
+		return chantools.Once(err)
+	}
+	return sg.start(ctx)
 }
 
 //TODO: Implement in other way this is not the concern of the graph to add output. should be done outside

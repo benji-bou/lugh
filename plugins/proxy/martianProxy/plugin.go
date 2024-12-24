@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
+	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
 
 	martian "github.com/benji-bou/SecPipeline/plugins/proxy/martianProxy/martian"
@@ -92,7 +93,7 @@ func main() {
 
 	helper.SetLog(slog.LevelDebug, true)
 	plugin := grpc.NewPlugin("martianProxy",
-		grpc.WithPluginImplementation(NewMartianPlugin()),
+		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromRunner(NewMartianPlugin())),
 	)
 	plugin.Serve()
 }

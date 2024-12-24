@@ -2,7 +2,7 @@ package helper
 
 import "iter"
 
-func Map[T any, A iter.Seq[T], O any](input A, mapper func(elem T) O) iter.Seq[O] {
+func IterMap[T any, A iter.Seq[T], O any](input A, mapper func(elem T) O) iter.Seq[O] {
 	return func(yield func(O) bool) {
 		for e := range input {
 			mapped := mapper(e)
@@ -11,4 +11,12 @@ func Map[T any, A iter.Seq[T], O any](input A, mapper func(elem T) O) iter.Seq[O
 			}
 		}
 	}
+}
+
+func Map[T any, A ~[]T, O any](input A, mapper func(elem T) O) []O {
+	res := make([]O, len(input))
+	for i, e := range input {
+		res[i] = mapper(e)
+	}
+	return res
 }

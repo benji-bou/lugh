@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
+	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
 	"github.com/benji-bou/chantools"
 	"github.com/docker/docker/api/types/container"
@@ -122,7 +123,7 @@ func (wh Docker) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <
 func main() {
 	helper.SetLog(slog.LevelInfo, true)
 	plugin := grpc.NewPlugin("docker",
-		grpc.WithPluginImplementation(NewDocker()),
+		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromRunner(NewDocker())),
 	)
 	plugin.Serve()
 }
