@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	sync "sync"
 )
 
 type GRPCClient struct {
 	client                 IOWorkerPluginsClient
 	Name                   string
 	clientStreamOutputDone chan struct{}
+	inputC                 <-chan []byte
+	outputC                chan []byte
 }
 
 func NewGRPCClient(client IOWorkerPluginsClient, name string) *GRPCClient {
@@ -18,6 +21,7 @@ func NewGRPCClient(client IOWorkerPluginsClient, name string) *GRPCClient {
 		client:                 client,
 		Name:                   name,
 		clientStreamOutputDone: make(chan struct{}),
+		outputC:                make(chan []byte),
 	}
 }
 
@@ -32,10 +36,45 @@ func (m *GRPCClient) Config(config []byte) error {
 	return err
 }
 
-func (m *GRPCClient) Run(ctx context.Context, inputC <-chan []byte, outputC chan<- []byte, errC chan<- error) {
-	go m.handleStreamInput(ctx, inputC)
-	go m.handleStreamOutput(ctx, outputC)
-	go m.handleRun(ctx, errC)
+// func (m *GRPCClient) Run(ctx context.Context, inputC <-chan []byte, outputC chan<- []byte, errC chan <- error) {
+// 	// runCtx, cancel := context.WithCancel(ctx)
+
+// 	wg := &sync.WaitGroup{}
+// }
+
+func (m *GRPCClient) Run(ctx context.Context) <-chan error {
+	// runCtx, cancel := context.WithCancel(ctx)
+	errC := make(chan error)
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+
+	go func() {
+		err := m.handleStreamInput(context.Background())
+		slog.Debug("end handleStreamInput", "name", m.Name, "error", err, "function", "Run", "object", "GRPCClient")
+		if err != nil {
+			errC <- err
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		err := m.handleStreamOutput(context.Background())
+		slog.Debug("end handleStreamOutput", "name", m.Name, "error", err, "function", "Run", "object", "GRPCClient")
+		if err != nil {
+			errC <- err
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		m.handleRun(context.Background(), errC)
+		slog.Info("end handleRun", "name", m.Name, "function", "Run", "object", "GRPCClient")
+	}()
+	go func() {
+		wg.Wait()
+		close(errC)
+		slog.Info("closing errC", "name", m.Name, "function", "Run", "object", "GRPCClient")
+	}()
+	return errC
 }
 
 func (m *GRPCClient) handleRun(ctx context.Context, errC chan<- error) {
@@ -59,12 +98,13 @@ func (m *GRPCClient) handleRun(ctx context.Context, errC chan<- error) {
 	}
 }
 
-func (m *GRPCClient) handleStreamOutput(ctx context.Context, outputC chan<- []byte) error {
+func (m *GRPCClient) handleStreamOutput(ctx context.Context) error {
 	slog.Debug("starting to handle stream output", "name", m.Name, "function", "handleStreamOutput", "object", "GRPCClient")
 	runloop := NewRunLoop()
 	defer func() {
 		slog.Debug("closing outputC", "name", m.Name, "function", "handleStreamOutput", "object", "GRPCClient")
 		close(m.clientStreamOutputDone)
+		close(m.outputC)
 	}()
 	stream, err := m.client.Output(ctx, &Empty{})
 	if err != nil {
@@ -79,12 +119,12 @@ func (m *GRPCClient) handleStreamOutput(ctx context.Context, outputC chan<- []by
 		slog.Debug("recv output data from grpc stream", "name", m.Name, "function", "handleStreamOutput", "object", "GRPCClient")
 		toForward := runloop.Recv(req)
 		if toForward != nil {
-			outputC <- toForward.Data
+			m.outputC <- toForward.Data
 		}
 	}
 }
 
-func (m *GRPCClient) handleStreamInput(ctx context.Context, inputC <-chan []byte) error {
+func (m *GRPCClient) handleStreamInput(ctx context.Context) error {
 	slog.Debug("starting to handle stream input", "name", m.Name, "function", "handleStreamInput", "object", "GRPCClient")
 	stream, err := m.client.Input(ctx)
 	if err != nil {
@@ -100,7 +140,7 @@ func (m *GRPCClient) handleStreamInput(ctx context.Context, inputC <-chan []byte
 			if !ok {
 				outputDone = true
 			}
-		case inputStreamData, ok := <-inputC:
+		case inputStreamData, ok := <-m.inputC:
 			// `!ok` no more input will be recieved we can safely close the stream and return
 			if !ok {
 				slog.Debug("inputC closed. Closing grpc stream", "name", m.Name, "function", "handleStreamInput", "object", "GRPCClient")
