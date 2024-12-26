@@ -29,7 +29,7 @@ type ioWorker struct {
 	graph.IOWorker[[]byte]
 }
 
-func NewIOWorkerPluginFromSync(plugin SyncWorkerPluginable) IOWorkerPluginable {
+func NewIOWorkerPluginFromSync(plugin SyncWorkerPluginable, name string) IOWorkerPluginable {
 	return ioWorker{plugin, graph.NewIOWorkerFromWorker(plugin)}
 }
 

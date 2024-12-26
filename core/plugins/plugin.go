@@ -6,11 +6,12 @@ import (
 
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
+	"github.com/benji-bou/SecPipeline/core/plugins/static/stdoutput"
 	"github.com/benji-bou/SecPipeline/core/plugins/static/transform"
 )
 
 func LoadPlugin(name string, path string, config any) (pluginapi.IOWorkerPluginable, error) {
-	plugin, err := getPluginBuilder(name, path)
+	plugin, err := getPlugin(name, path)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load plugin %s: %v", name, err)
 	}
@@ -27,11 +28,13 @@ func LoadPlugin(name string, path string, config any) (pluginapi.IOWorkerPlugina
 	return plugin, nil
 }
 
-func getPluginBuilder(name string, path string) (pluginapi.IOWorkerPluginable, error) {
+func getPlugin(name string, path string) (pluginapi.IOWorkerPluginable, error) {
 	switch name {
 	case "transform":
 		t := transform.New()
-		return pluginapi.NewIOWorkerPluginFromSync(t), nil
+		return pluginapi.NewIOWorkerPluginFromSync(t, name), nil
+	case "output", "stdoutput":
+		return pluginapi.NewIOWorkerPluginFromSync(stdoutput.Plugin{}, name), nil
 	default:
 		if path != "" {
 			return grpc.NewPlugin(name, grpc.WithPath(path)).Connect()

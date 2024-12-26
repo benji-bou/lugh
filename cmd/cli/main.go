@@ -36,7 +36,7 @@ func main() {
 			defer func() {
 				grpc.CleanupClients()
 			}()
-			helper.SetLog(slog.LevelDebug, true)
+			helper.SetLog(slog.LevelDebug, false)
 			if c.IsSet("draw-graph-only") {
 				return DrawGraphOnly(c)
 			} else {
@@ -78,7 +78,7 @@ func RunTemplate(c *cli.Context) error {
 			if !ok {
 				return nil
 			}
-			slog.Error("an error occured in a stage", "error", e)
+			slog.Error("an error occured in a stage", "error", e.Error())
 		case <-sigc:
 			return nil
 		}

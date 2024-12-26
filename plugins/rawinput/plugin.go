@@ -49,7 +49,7 @@ func (wh RawInput) Run(ctx context.Context, input <-chan []byte) (<-chan []byte,
 }
 
 func main() {
-	helper.SetLog(slog.LevelDebug, true)
+	helper.SetLog(slog.LevelError, false)
 	plugin := grpc.NewPlugin("rawInput",
 		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromRunner(NewRawInput())),
 	)

@@ -83,6 +83,7 @@ func (wh Docker) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <
 			if err := cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
 				panic(err)
 			}
+			slog.Debug("start  container wait")
 
 			statusCh, errCh := cli.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
 			select {
@@ -92,6 +93,7 @@ func (wh Docker) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <
 				}
 			case <-statusCh:
 			}
+			slog.Debug("start get container logs")
 			out, err := cli.ContainerLogs(ctx, resp.ID, container.LogsOptions{ShowStdout: true})
 			if err != nil {
 				panic(err)
@@ -104,6 +106,7 @@ func (wh Docker) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <
 			go func() {
 				defer wg.Done()
 				for elem := range byteResC {
+					slog.Debug("send to output logs")
 					cDataStream <- elem
 				}
 				slog.Debug("end of forward data response ")
@@ -121,7 +124,7 @@ func (wh Docker) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <
 }
 
 func main() {
-	helper.SetLog(slog.LevelInfo, true)
+	helper.SetLog(slog.LevelInfo, false)
 	plugin := grpc.NewPlugin("docker",
 		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromRunner(NewDocker())),
 	)

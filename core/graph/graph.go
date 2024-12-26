@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"errors"
+	"fmt"
 	"iter"
 	"log/slog"
 	"os"
@@ -126,22 +127,31 @@ func (sg *IOGraph[K]) MergeVertexOutput(vertices iter.Seq[IOWorkerVertex[K]]) <-
 
 }
 func (sg *IOGraph[K]) initialize() error {
-
+	slog.Debug("Initializing graph")
 	parentsMap, err := sg.PredecessorVertices()
 	if err != nil {
-		return err
+		return fmt.Errorf("error while initializing graph: %w", err)
 	}
 	for currentVertexHash, parentVertex := range parentsMap {
+		slog.Debug("Initializing vertex", "vertex", currentVertexHash)
 		currentVertex, err := sg.Vertex(currentVertexHash)
 		if err != nil {
-			return err
+			slog.Error("Error while initializing graph: ", "error", err, "vertexHash", currentVertexHash)
+			return fmt.Errorf("error while initializing graph: %w", err)
 		}
-		currentVertex.SetInput(sg.MergeVertexOutput(maps.Values(parentVertex)))
+
+		parentsMapValuesIterator := maps.Values(parentVertex)
+		slog.Debug("Initializing vertex set input", "vertex", currentVertexHash, "parents", slices.Collect(helper.IterMap(parentsMapValuesIterator, func(elem IOWorkerVertex[K]) string { return elem.GetName() })))
+
+		currentVertex.SetInput(sg.MergeVertexOutput(parentsMapValuesIterator))
 	}
+	slog.Debug("End of initializing graph")
 	return nil
 }
 
 func (sg *IOGraph[K]) start(ctx context.Context) <-chan error {
+	slog.Debug("Starting graph")
+	// syncWorker := NewWorkerSynchronization()
 	vertexMap, _ := sg.AdjacencyMap()
 	if len(vertexMap) == 0 {
 		return chantools.Once(errors.New("empty graph. No stage loaded"))
@@ -153,8 +163,11 @@ func (sg *IOGraph[K]) start(ctx context.Context) <-chan error {
 			slog.Error("Error while start running Io Graph: ", "error", err, "vertexHash", vertexHash)
 			continue
 		}
-		errorsOutputC = append(errorsOutputC, vertex.Run(ctx))
+		slog.Debug("Starting run vertex", "vertex", vertexHash)
+		errorsOutputC = append(errorsOutputC, vertex.Run(ctx)) //, syncWorker
 	}
+	// syncWorker.Synchronize()
+	slog.Debug("End of starting graph")
 	return chantools.Merge(errorsOutputC...)
 }
 
