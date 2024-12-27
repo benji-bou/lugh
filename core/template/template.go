@@ -3,6 +3,7 @@ package template
 import (
 	"fmt"
 	"iter"
+	"log/slog"
 	"os"
 
 	"github.com/benji-bou/SecPipeline/core/graph"
@@ -44,6 +45,7 @@ func (t Template) WorkerVertexIterator() iter.Seq[graph.IOWorkerVertex[[]byte]] 
 	return func(yield func(graph.IOWorkerVertex[[]byte]) bool) {
 		for name, stage := range t.Stages {
 			worker := stage.LoadPlugin(name)
+			slog.Debug("vertex", "name", worker.GetName(), "parents", worker.GetParents())
 			if worker != nil {
 				if !yield(worker) {
 					return

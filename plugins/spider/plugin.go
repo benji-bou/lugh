@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"sync"
 
+	"github.com/benji-bou/SecPipeline/core/graph"
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
@@ -36,7 +37,7 @@ func (mp *Spider) Config([]byte) error {
 }
 
 // Run expect a json array of strings listing sites to visists
-func (mp Spider) Run(context context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+func (mp Spider) Run(context graph.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
 
 	return chantools.NewWithErr(func(c chan<- []byte, eC chan<- error, params ...any) {
 		inputSiteC := make(chan string)

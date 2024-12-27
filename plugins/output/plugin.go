@@ -1,10 +1,10 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 
+	"github.com/benji-bou/SecPipeline/core/graph"
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
@@ -27,7 +27,7 @@ func (mp Output) Config([]byte) error {
 	return nil
 }
 
-func (mp Output) Run(context context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+func (mp Output) Run(context graph.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
 	return chantools.NewWithErr(func(c chan<- []byte, eC chan<- error, params ...any) {
 		for {
 			select {

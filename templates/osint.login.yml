@@ -22,23 +22,8 @@ stages:
     config:
       host: unix:///Users/benjamin/.orbstack/run/docker.sock
       image: "holehe:latest"
-  transformResult: 
-    parents: 
-      - holehe
-    plugin: transform
-    config: 
-      - split:
-          sep: "\n"
-      - goTemplate: 
-          pattern: "{{ trim . }}"
-          format: string
-      - regex:
-          pattern: '^\[\+\](.*\..*)$'
-          select: 1
-      - goTemplate: 
-          format: string
-          pattern: "https://{{ trim  . }}"
+
   outputHolehe:
     parents: 
-      - transformResult
+      - holehe
     plugin: output

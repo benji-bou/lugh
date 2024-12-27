@@ -13,31 +13,11 @@ type Worker[K any] interface {
 }
 
 type Runner[K any] interface {
-	// Run(ctx context.Context, input <-chan K, outputC chan<- K, errC chan<- error)
-	Run(ctx context.Context, input <-chan K) (<-chan K, <-chan error)
+	Run(ctx Context, input <-chan K) (<-chan K, <-chan error)
 }
 
-// type workerSynchronization struct {
-// 	wg sync.WaitGroup
-// }
-
-// func NewWorkerSynchronization() *workerSynchronization {
-// 	return &workerSynchronization{wg: sync.WaitGroup{}}
-// }
-// func (ws *workerSynchronization) Initializing() {
-// 	ws.wg.Add(1)
-// }
-
-// func (ws *workerSynchronization) Initialized() {
-// 	ws.wg.Done()
-// }
-// func (ws *workerSynchronization) Synchronize() {
-// 	ws.wg.Wait()
-// }
-
 type IOWorker[K any] interface {
-	// Run(ctx context.Context, syncWorker *workerSynchronization) <-chan error
-	Run(ctx context.Context) <-chan error
+	Run(ctx SyncContext) <-chan error
 	SetInput(input <-chan K)
 	Output() <-chan K
 }
@@ -85,6 +65,7 @@ func NewIOWorkerFromWorker[K any](worker Worker[K]) IOWorker[K] {
 }
 
 func (v *syncWorker[K]) SetInput(input <-chan K) {
+	slog.Debug("setting input", "object", "syncWorker", "function", "SetInput", "name", reflect.TypeOf(v.worker))
 	v.inputC = input
 }
 
@@ -92,24 +73,27 @@ func (v *syncWorker[K]) Output() <-chan K {
 	return v.outputC
 }
 
-func (v *syncWorker[K]) Run(ctx context.Context) <-chan error { //, syncWorker *workerSynchronization
-	// syncWorker.Initializing()
+func (v *syncWorker[K]) Run(ctx SyncContext) <-chan error {
+	ctx.Initializing()
 	return chantools.New(func(errC chan<- error, params ...any) {
-		slog.Debug("start run in syncWorker", "name", reflect.TypeOf(v.worker))
+		slog.Debug("start", "object", "syncWorker", "function", "Run", "name", reflect.TypeOf(v.worker))
 		defer func() {
-			slog.Debug("sync worker closing output and error channel", "name", reflect.TypeOf(v.worker))
+			slog.Debug("end, output close", "object", "syncWorker", "function", "Run", "name", reflect.TypeOf(v.worker))
 			close(v.outputC)
 		}()
-		// syncWorker.Initialized()
+		ctx.Initialized()
 		for data := range v.inputC {
-			slog.Debug("sync worker work", "data", data, "name", reflect.TypeOf(v.worker))
+			slog.Debug("received data start work", "data", data, "object", "syncWorker", "function", "Run", "name", reflect.TypeOf(v.worker))
 			output, err := v.worker.Work(ctx, data)
 			if err != nil {
+				slog.Error("work failed", "error", err, "object", "syncWorker", "function", "Run", "name", reflect.TypeOf(v.worker))
 				errC <- err
 				continue
 			}
 			for _, output := range output {
+				slog.Debug("work success, send result", "data", output, "error", err, "object", "syncWorker", "function", "Run", "name", reflect.TypeOf(v.worker))
 				v.outputC <- output
+				slog.Debug("work success, result  sent", "data", output, "error", err, "object", "syncWorker", "function", "Run", "name", reflect.TypeOf(v.worker))
 			}
 		}
 	}, chantools.WithContext[error](ctx), chantools.WithName[error](reflect.TypeOf(v.worker).String()))
@@ -123,6 +107,7 @@ type runWorker[K any] struct {
 }
 
 func (v *runWorker[K]) SetInput(input <-chan K) {
+	slog.Debug("setting input", "object", "runWorker", "function", "SetInput", "name", reflect.TypeOf(v.runner))
 	v.input = input
 }
 
@@ -130,16 +115,11 @@ func (v *runWorker[K]) Output() <-chan K {
 	return v.outputC
 }
 
-func (v *runWorker[K]) Run(ctx context.Context) <-chan error { //, syncWorker *workerSynchronization
-	// syncWorker.Initializing()
-	slog.Debug("start run in runWorker", "name", v.runner)
+func (v *runWorker[K]) Run(ctx SyncContext) <-chan error {
+	ctx.Initializing()
 	errC := make(chan error)
 	go func() {
-		defer func() {
-			close(errC)
-			close(v.outputC)
-		}()
-		// syncWorker.Initialized()
+		slog.Debug("start", "object", "runWorker", "function", "Run", "name", reflect.TypeOf(v.runner))
 		outputC, errCRun := v.runner.Run(ctx, v.input)
 		chantools.ForwardTo(ctx, outputC, v.outputC)
 		chantools.ForwardTo(ctx, errCRun, errC)

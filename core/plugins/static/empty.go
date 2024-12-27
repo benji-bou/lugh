@@ -1,6 +1,6 @@
 package static
 
-import "context"
+import "github.com/benji-bou/SecPipeline/core/graph"
 
 type EmptyPlugin struct {
 }
@@ -13,6 +13,6 @@ func (spp EmptyPlugin) Config(config []byte) error {
 	return nil
 }
 
-func (spp EmptyPlugin) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+func (spp EmptyPlugin) Run(context graph.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
 	return nil, nil
 }

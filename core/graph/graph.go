@@ -23,9 +23,7 @@ type IOGraph[K any] struct {
 
 func WithIOWorkerVertexIterator[K any](it iter.Seq[IOWorkerVertex[K]]) IOGraphOption[K] {
 	return func(configure *IOGraph[K]) {
-		for secVertex := range it {
-			configure.AddIOWorkerVertex(secVertex)
-		}
+		configure.AddIOWorkerVertex(it)
 	}
 }
 
@@ -39,7 +37,6 @@ func NewGraph[K any](opt ...IOGraphOption[K]) *IOGraph[K] {
 	for _, o := range opt {
 		if o != nil {
 			o(sg)
-
 		}
 	}
 	return sg
@@ -105,15 +102,22 @@ func (sg *IOGraph[K]) iterOrientedNeighborlessVertex(orientedNeighborSearch func
 	}
 }
 
-func (sg *IOGraph[K]) AddIOWorkerVertex(newVertex IOWorkerVertex[K]) error {
-	err := sg.AddVertex(newVertex)
-	if err != nil {
-		return err
-	}
-	for _, p := range newVertex.GetParents() {
-		err := sg.AddEdge(p, newVertex.GetName())
+func (sg *IOGraph[K]) AddIOWorkerVertex(vertices iter.Seq[IOWorkerVertex[K]]) error {
+	for newVertex := range vertices {
+		err := sg.AddVertex(newVertex)
 		if err != nil {
+			slog.Error("****** Error adding vertex", "vertex", newVertex.GetName(), "error", err)
+
 			return err
+		}
+	}
+	for newVertex := range vertices {
+		for _, p := range newVertex.GetParents() {
+			err := sg.AddEdge(p, newVertex.GetName())
+			if err != nil {
+				slog.Error("****** Error adding edge", "from", p, "to", newVertex.GetName(), "error", err)
+				return err
+			}
 		}
 	}
 	return nil
@@ -150,8 +154,7 @@ func (sg *IOGraph[K]) initialize() error {
 }
 
 func (sg *IOGraph[K]) start(ctx context.Context) <-chan error {
-	slog.Debug("Starting graph")
-	// syncWorker := NewWorkerSynchronization()
+	ctxSync := NewContext(ctx)
 	vertexMap, _ := sg.AdjacencyMap()
 	if len(vertexMap) == 0 {
 		return chantools.Once(errors.New("empty graph. No stage loaded"))
@@ -164,9 +167,10 @@ func (sg *IOGraph[K]) start(ctx context.Context) <-chan error {
 			continue
 		}
 		slog.Debug("Starting run vertex", "vertex", vertexHash)
-		errorsOutputC = append(errorsOutputC, vertex.Run(ctx)) //, syncWorker
+		errorsOutputC = append(errorsOutputC, vertex.Run(ctxSync))
 	}
-	// syncWorker.Synchronize()
+	slog.Debug("Wait for vertex worker synchronization")
+	ctxSync.Synchronize()
 	slog.Debug("End of starting graph")
 	return chantools.Merge(errorsOutputC...)
 }
@@ -178,15 +182,3 @@ func (sg *IOGraph[K]) Run(ctx context.Context) <-chan error {
 	}
 	return sg.start(ctx)
 }
-
-//TODO: Implement in other way this is not the concern of the graph to add output. should be done outside
-// func (sg *IOGraph[K]) ChanOutputGraph(output chan<- *grpc.DataStream) error {
-
-// 	rawOutputPlugin := plugin.NewRawOutputPlugin(plugin.WithChannel(output))
-// 	outputVertex := SecVertex{name: fmt.Sprintf("datastream-chan-output-%s", uuid.NewString()), plugin: rawOutputPlugin, parents: slices.Collect(helper.Map(sg.IterChildlessVertex(), func(elem SecVertexer) string { return elem.GetName() }))}
-// 	err := sg.AddSecVertexer(outputVertex)
-// 	if err != nil {
-// 		return fmt.Errorf("set chan ouptgraph failed: %w", err)
-// 	}
-// 	return nil
-// }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/benji-bou/SecPipeline/core/graph"
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
@@ -45,7 +45,7 @@ func (wh Docker) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
-func (wh Docker) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+func (wh Docker) Run(ctx graph.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
 	hostOpt := client.WithHostFromEnv()
 	if wh.config.Host != "" {
 		hostOpt = client.WithHost(wh.config.Host)
@@ -124,7 +124,7 @@ func (wh Docker) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <
 }
 
 func main() {
-	helper.SetLog(slog.LevelInfo, false)
+	helper.SetLog(slog.LevelDebug, false)
 	plugin := grpc.NewPlugin("docker",
 		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromRunner(NewDocker())),
 	)

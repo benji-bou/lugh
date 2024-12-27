@@ -19,7 +19,7 @@ func startNormalUseSyncWorker() (chan<- []byte, <-chan []byte, <-chan error) {
 	v := NewIOWorkerFromWorker(SynWorkerTestable{})
 	v.SetInput(inputTestC)
 	outputTestC := v.Output()
-	errC := v.Run(context.Background()) //, NewWorkerSynchronization()
+	errC := v.Run(NewContext(context.Background())) //, NewWorkerSynchronization()
 
 	return inputTestC, outputTestC, errC
 }

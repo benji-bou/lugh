@@ -1,12 +1,12 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 
+	"github.com/benji-bou/SecPipeline/core/graph"
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
@@ -42,7 +42,7 @@ func (wh Webhook) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
-func (wh Webhook) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+func (wh Webhook) Run(context graph.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
 	return chantools.NewWithErr(func(cDataStream chan<- []byte, eC chan<- error, params ...any) {
 		method := wh.config.Method
 		if method == "" {

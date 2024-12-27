@@ -1,12 +1,12 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"math"
 
+	"github.com/benji-bou/SecPipeline/core/graph"
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
@@ -49,7 +49,7 @@ func (mp *Katana) Config(conf []byte) error {
 	return nil
 }
 
-func (mp *Katana) Run(context context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+func (mp *Katana) Run(context graph.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
 	return chantools.NewWithErr(func(c chan<- []byte, eC chan<- error, params ...any) {
 		mp.option.OnResult = func(r output.Result) {
 			res, err := json.Marshal(r)

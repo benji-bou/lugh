@@ -4,6 +4,7 @@ import (
 	context "context"
 	"log/slog"
 
+	"github.com/benji-bou/SecPipeline/core/graph"
 	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 )
 
@@ -33,25 +34,24 @@ func (m *GRPCServer) Input(stream IOWorkerPlugins_InputServer) error {
 		if err != nil {
 			return handleGRPCStreamError(err, m.Name)
 		}
-		slog.Debug("recv data", "function", "Run", "Object", "GRPCServer", "name", m.Name)
 		toForward := runLoop.Recv(req)
+		slog.Debug("recv data", "function", "Input", "Object", "GRPCServer", "name", m.Name, "data", req.Data)
 		if toForward != nil {
+			slog.Debug("send data to input", "function", "Input", "Object", "GRPCServer", "name", m.Name, "data", req.Data)
 			inputC <- toForward.Data
 		}
 	}
 }
 
 func (m *GRPCServer) Output(empty *Empty, stream IOWorkerPlugins_OutputServer) error {
-
 	runLoop := NewRunLoop()
-
 	for dataOutput := range m.Impl.Output() {
-
+		slog.Debug("receive data from outputC", "function", "Output", "Object", "GRPCServer", "data", dataOutput, "name", m.Name)
 		for _, d := range runLoop.Send(&DataStream{Data: dataOutput, ParentSrc: m.Name}) {
-			slog.Debug("sending data over stream", "function", "Run", "Object", "GRPCServer", "data", dataOutput, "name", m.Name)
+			slog.Debug("sending data over stream", "function", "Output", "Object", "GRPCServer", "data", dataOutput, "name", m.Name)
 			err := stream.Send(d)
 			if err != nil {
-				slog.Error("sending data over stream failed", "function", "Run", "Object", "GRPCServer", "error", err, "name", m.Name)
+				slog.Error("sending data over stream failed", "function", "Output", "Object", "GRPCServer", "error", err, "name", m.Name)
 				return err
 			}
 		}
@@ -61,7 +61,7 @@ func (m *GRPCServer) Output(empty *Empty, stream IOWorkerPlugins_OutputServer) e
 }
 
 func (m *GRPCServer) Run(_ *Empty, s IOWorkerPlugins_RunServer) error {
-	errC := m.Impl.Run(s.Context()) //, graph.NewWorkerSynchronization()
+	errC := m.Impl.Run(graph.NewContext(s.Context())) //, graph.NewWorkerSynchronization()
 	slog.Info("start listening for errors", "name", m.Name)
 	for err := range errC {
 		slog.Info("error received", "error", err, "name", m.Name)

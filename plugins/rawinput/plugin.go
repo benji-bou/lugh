@@ -1,11 +1,11 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 
+	"github.com/benji-bou/SecPipeline/core/graph"
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
@@ -39,7 +39,7 @@ func (wh RawInput) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
-func (wh RawInput) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+func (wh RawInput) Run(context graph.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
 	return chantools.NewWithErr(func(cDataStream chan<- []byte, eC chan<- error, params ...any) {
 		slog.Info("will send data", "data", wh.config.Data)
 		cDataStream <- []byte(wh.config.Data)
@@ -49,7 +49,7 @@ func (wh RawInput) Run(ctx context.Context, input <-chan []byte) (<-chan []byte,
 }
 
 func main() {
-	helper.SetLog(slog.LevelError, false)
+	helper.SetLog(slog.LevelDebug, false)
 	plugin := grpc.NewPlugin("rawInput",
 		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromRunner(NewRawInput())),
 	)

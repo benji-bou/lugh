@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/benji-bou/SecPipeline/core/graph"
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
@@ -57,7 +57,7 @@ func (mp *MartianPlugin) Config(config []byte) error {
 	return nil
 }
 
-func (mp MartianPlugin) Run(ctx context.Context, _ <-chan []byte) (<-chan []byte, <-chan error) {
+func (mp MartianPlugin) Run(ctx graph.Context, _ <-chan []byte) (<-chan []byte, <-chan error) {
 	slog.Info("MartianPlugin run")
 
 	// We use the option WithNonManagedChannel because we want let the chantools.NewWriter handle the close

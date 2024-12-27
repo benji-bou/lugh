@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os/exec"
 
+	"github.com/benji-bou/SecPipeline/core/graph"
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
@@ -97,7 +98,7 @@ func (mp Shell) startCmdAndPipeInput(context context.Context, input <-chan []byt
 	})
 }
 
-func (mp Shell) Run(context context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+func (mp Shell) Run(context graph.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
 	if mp.cmd != "" {
 		return mp.startCmdAndPipeInput(context, input)
 	}

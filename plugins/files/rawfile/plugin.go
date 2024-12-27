@@ -1,13 +1,13 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 
+	"github.com/benji-bou/SecPipeline/core/graph"
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
@@ -40,7 +40,7 @@ func (mp *RawFile) Config(config []byte) error {
 	mp.config = configRawFile
 	return nil
 }
-func (mp RawFile) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+func (mp RawFile) Run(context graph.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
 	basePath, err := os.UserHomeDir()
 	if err != nil {
 		basePath = "./"

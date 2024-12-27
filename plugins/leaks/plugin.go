@@ -1,11 +1,11 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 
+	"github.com/benji-bou/SecPipeline/core/graph"
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
@@ -31,7 +31,7 @@ func (mp LeaksPlugin) Config([]byte) error {
 	return nil
 }
 
-func (mp LeaksPlugin) Run(ctx context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+func (mp LeaksPlugin) Run(context graph.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
 	slog.Info("start run", "function", "Run", "plugin", "LeaksPlugin")
 	detector, err := detect.NewDetectorDefaultConfig()
 	if err != nil {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 
+	"github.com/benji-bou/SecPipeline/core/graph"
 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
 	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
 	"github.com/benji-bou/SecPipeline/helper"
@@ -67,7 +67,7 @@ func (mp *MemFilter) Config(config []byte) error {
 	return nil
 }
 
-func (mp *MemFilter) Run(context context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+func (mp *MemFilter) Run(context graph.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
 	return chantools.NewWithErr(func(c chan<- []byte, eC chan<- error, params ...any) {
 		for {
 			select {
