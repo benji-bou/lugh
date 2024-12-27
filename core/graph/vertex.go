@@ -91,12 +91,11 @@ func (v *syncWorker[K]) Run(ctx SyncContext) <-chan error {
 				continue
 			}
 			for _, output := range output {
-				slog.Debug("work success, send result", "data", output, "error", err, "object", "syncWorker", "function", "Run", "name", reflect.TypeOf(v.worker))
 				v.outputC <- output
 				slog.Debug("work success, result  sent", "data", output, "error", err, "object", "syncWorker", "function", "Run", "name", reflect.TypeOf(v.worker))
 			}
 		}
-	}, chantools.WithContext[error](ctx), chantools.WithName[error](reflect.TypeOf(v.worker).String()))
+	}, chantools.WithName[error](reflect.TypeOf(v.worker).String()))
 
 }
 
