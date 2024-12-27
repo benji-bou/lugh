@@ -65,7 +65,7 @@ func NewIOWorkerFromWorker[K any](worker Worker[K]) IOWorker[K] {
 }
 
 func (v *syncWorker[K]) SetInput(input <-chan K) {
-	slog.Debug("setting input", "object", "syncWorker", "function", "SetInput", "name", reflect.TypeOf(v.worker))
+
 	v.inputC = input
 }
 
@@ -106,7 +106,6 @@ type runWorker[K any] struct {
 }
 
 func (v *runWorker[K]) SetInput(input <-chan K) {
-	slog.Debug("setting input", "object", "runWorker", "function", "SetInput", "name", reflect.TypeOf(v.runner))
 	v.input = input
 }
 

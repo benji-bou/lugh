@@ -106,7 +106,7 @@ func (sg *IOGraph[K]) AddIOWorkerVertex(vertices iter.Seq[IOWorkerVertex[K]]) er
 	for newVertex := range vertices {
 		err := sg.AddVertex(newVertex)
 		if err != nil {
-			slog.Error("****** Error adding vertex", "vertex", newVertex.GetName(), "error", err)
+			slog.Error("Error adding vertex", "vertex", newVertex.GetName(), "error", err)
 
 			return err
 		}
@@ -115,7 +115,7 @@ func (sg *IOGraph[K]) AddIOWorkerVertex(vertices iter.Seq[IOWorkerVertex[K]]) er
 		for _, p := range newVertex.GetParents() {
 			err := sg.AddEdge(p, newVertex.GetName())
 			if err != nil {
-				slog.Error("****** Error adding edge", "from", p, "to", newVertex.GetName(), "error", err)
+				slog.Error("Error adding edge", "from", p, "to", newVertex.GetName(), "error", err)
 				return err
 			}
 		}
