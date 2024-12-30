@@ -128,7 +128,9 @@ func (p *producerWorker[K]) Run(ctx SyncContext) <-chan error {
 	ctx.Initializing()
 	return diwo.New(func(c chan<- error) {
 		defer close(p.outputC)
+		slog.Debug("producer initialized")
 		ctx.Initialized()
+		slog.Debug("producer start producing")
 		err := p.producer.Produce(ctx, func(elem K) error {
 			p.outputC <- elem
 			return nil

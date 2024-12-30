@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 )
 
 type ForwardWorkerTestable[K any] struct {
@@ -18,8 +19,9 @@ func startNormalUseSyncWorker() (chan<- []byte, <-chan []byte, <-chan error) {
 	v := NewIOWorkerFromWorker(ForwardWorkerTestable[[]byte]{})
 	v.SetInput(inputTestC)
 	outputTestC := v.Output()
-	errC := v.Run(NewContext(context.Background())) //, NewWorkerSynchronization()
-
+	ctx := NewContext(context.Background())
+	errC := v.Run(ctx) //, NewWorkerSynchronization()
+	ctx.Synchronize()
 	return inputTestC, outputTestC, errC
 }
 func startWithoutRunSyncWorker() (chan<- []byte, <-chan []byte, <-chan error) {
@@ -63,12 +65,15 @@ func assertDefaultEqual(t *testing.T, dataTest [][]byte, outputC <-chan []byte, 
 				return
 			}
 			i++
+
 		}
 	}
 }
 
 func assertShouldNotReceiveData(t *testing.T, _ [][]byte, outputC <-chan []byte, errC <-chan error) {
 	t.Helper()
+	tC := time.After(3 * time.Second)
+
 	for {
 		select {
 		case err := <-errC:
@@ -79,6 +84,9 @@ func assertShouldNotReceiveData(t *testing.T, _ [][]byte, outputC <-chan []byte,
 				t.Errorf("received data but should not")
 				return
 			}
+		case <-tC:
+			return
+
 		}
 	}
 }
@@ -91,7 +99,7 @@ type syncWorkerConfigTest struct {
 }
 
 func TestSyncWorker(t *testing.T) {
-	dataTest := [][]byte{[]byte("test")}
+	dataTest := [][]byte{[]byte("test"), []byte("toto"), []byte("titi")}
 
 	useSyncWorkerTests := []syncWorkerConfigTest{
 		{startNormalUseSyncWorker, "Normal Use Sync Worker", dataTest, assertDefaultEqual},

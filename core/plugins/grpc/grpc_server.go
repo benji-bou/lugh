@@ -61,7 +61,9 @@ func (m *GRPCServer) Output(empty *Empty, stream IOWorkerPlugins_OutputServer) e
 }
 
 func (m *GRPCServer) Run(_ *Empty, s IOWorkerPlugins_RunServer) error {
-	errC := m.Impl.Run(graph.NewContext(s.Context())) //, graph.NewWorkerSynchronization()
+	ctxSync := graph.NewContext(s.Context())
+	errC := m.Impl.Run(ctxSync)
+	ctxSync.Synchronize()
 	slog.Info("start listening for errors", "name", m.Name)
 	for err := range errC {
 		slog.Info("error received", "error", err, "name", m.Name)

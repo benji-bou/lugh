@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -97,7 +96,6 @@ func (mp Shell) Run(context context.Context, input <-chan []byte, yield func(ele
 		}
 	}
 
-	return errors.New("unsupported behavior")
 }
 
 func main() {
