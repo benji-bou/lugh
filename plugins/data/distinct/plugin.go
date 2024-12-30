@@ -10,11 +10,11 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 
-	"github.com/benji-bou/SecPipeline/core/graph"
-	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
-	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
-	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/chantools"
+	"github.com/benji-bou/lugh/core/graph"
+	"github.com/benji-bou/lugh/core/plugins/grpc"
+	"github.com/benji-bou/lugh/core/plugins/pluginapi"
+	"github.com/benji-bou/lugh/helper"
+	"github.com/benji-bou/diwo"
 )
 
 type MemFilterOption = helper.Option[MemFilter]
@@ -67,8 +67,8 @@ func (mp *MemFilter) Config(config []byte) error {
 	return nil
 }
 
-func (mp *MemFilter) Run(context graph.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
-	return chantools.NewWithErr(func(c chan<- []byte, eC chan<- error, params ...any) {
+func (mp *MemFilter) Run(context graph.Context, input <-chan []byte) <-chan []byte {
+	return diwo.New(func(c chan<- []byte) { {
 		for {
 			select {
 			case <-context.Done():

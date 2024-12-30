@@ -6,11 +6,11 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/benji-bou/SecPipeline/core/graph"
-	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
-	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
-	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/chantools"
+	"github.com/benji-bou/diwo"
+	"github.com/benji-bou/lugh/core/graph"
+	"github.com/benji-bou/lugh/core/plugins/grpc"
+	"github.com/benji-bou/lugh/core/plugins/pluginapi"
+	"github.com/benji-bou/lugh/helper"
 	"github.com/labstack/echo/v4"
 )
 
@@ -42,8 +42,8 @@ func (wh Webhook) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
-func (wh Webhook) Run(context graph.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
-	return chantools.NewWithErr(func(cDataStream chan<- []byte, eC chan<- error, params ...any) {
+func (wh Webhook) Run(context graph.Context, input <-chan []byte) <-chan []byte {
+	return diwo.New(func(cDataStream chan<- []byte, eC chan<- error, params ...any) {
 		method := wh.config.Method
 		if method == "" {
 			method = "POST"

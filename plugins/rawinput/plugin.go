@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/benji-bou/SecPipeline/core/graph"
-	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
-	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
-	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/chantools"
+	"github.com/benji-bou/diwo"
+	"github.com/benji-bou/lugh/core/graph"
+	"github.com/benji-bou/lugh/core/plugins/grpc"
+	"github.com/benji-bou/lugh/core/plugins/pluginapi"
+	"github.com/benji-bou/lugh/helper"
 )
 
 type ConfigRawInput struct {
@@ -39,12 +39,12 @@ func (wh RawInput) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
-func (wh RawInput) Run(context graph.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
-	return chantools.NewWithErr(func(cDataStream chan<- []byte, eC chan<- error, params ...any) {
+func (wh RawInput) Run(context graph.Context, input <-chan []byte) <-chan []byte {
+	return diwo.New(func(cDataStream chan<- []byte, eC chan<- error, params ...any) {
 		slog.Info("will send data", "data", wh.config.Data)
 		cDataStream <- []byte(wh.config.Data)
 		slog.Info("did send data", "data", wh.config.Data)
-	}, chantools.WithName[[]byte]("raw-input"))
+	}, diwo.WithName[[]byte]("raw-input"))
 
 }
 

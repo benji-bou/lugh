@@ -9,11 +9,11 @@ import (
 	"log/slog"
 	"os/exec"
 
-	"github.com/benji-bou/SecPipeline/core/graph"
-	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
-	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
-	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/chantools"
+	"github.com/benji-bou/lugh/core/graph"
+	"github.com/benji-bou/lugh/core/plugins/grpc"
+	"github.com/benji-bou/lugh/core/plugins/pluginapi"
+	"github.com/benji-bou/lugh/helper"
+	"github.com/benji-bou/diwo"
 )
 
 type ShellOption = helper.Option[Shell]
@@ -46,7 +46,7 @@ func (mp *Shell) Config(conf []byte) error {
 }
 
 func (mp Shell) startCmdAndPipeInput(context context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
-	return chantools.NewWithErr(func(c chan<- []byte, eC chan<- error, params ...any) {
+	return diwo.New(func(c chan<- []byte) { {
 
 		cmd := exec.Command(mp.cmd, mp.args...)
 		inputCmd, err := cmd.StdinPipe()
@@ -98,11 +98,11 @@ func (mp Shell) startCmdAndPipeInput(context context.Context, input <-chan []byt
 	})
 }
 
-func (mp Shell) Run(context graph.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+func (mp Shell) Run(context graph.Context, input <-chan []byte) <-chan []byte {
 	if mp.cmd != "" {
 		return mp.startCmdAndPipeInput(context, input)
 	}
-	return make(<-chan []byte), chantools.Once(errors.New("unsupported behavior"))
+	return make(<-chan []byte), diwo.Once(errors.New("unsupported behavior"))
 }
 
 func main() {

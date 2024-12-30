@@ -8,18 +8,18 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/benji-bou/SecPipeline/core/graph"
-	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
-	"github.com/benji-bou/SecPipeline/core/template"
-	"github.com/benji-bou/SecPipeline/helper"
+	"github.com/benji-bou/lugh/core/graph"
+	"github.com/benji-bou/lugh/core/plugins/grpc"
+	"github.com/benji-bou/lugh/core/template"
+	"github.com/benji-bou/lugh/helper"
 
 	"github.com/urfave/cli/v2"
 )
 
 func main() {
 	app := &cli.App{
-		Name:  "SecPipeline",
-		Usage: "SecPipeline can be use to construct cyber security pipeline based on modules",
+		Name:  "lugh",
+		Usage: "lugh can be use to construct cyber security pipeline based on modules",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:  "draw-graph-only",
@@ -56,7 +56,7 @@ func DrawGraphOnly(c *cli.Context) error {
 		return err
 	}
 
-	g := graph.NewGraph(graph.WithIOWorkerVertexIterator(tpl.WorkerVertexIterator()))
+	g := graph.New(graph.WithIOWorkerVertexIterator(tpl.WorkerVertexIterator()))
 
 	return g.DrawGraph(c.String("draw-graph-only"))
 }
@@ -68,7 +68,7 @@ func RunTemplate(c *cli.Context) error {
 		slog.Error("failed to start template", "error", err)
 		return err
 	}
-	g := graph.NewGraph(graph.WithIOWorkerVertexIterator(tpl.WorkerVertexIterator()))
+	g := graph.New(graph.WithIOWorkerVertexIterator(tpl.WorkerVertexIterator()))
 	errC := g.Run(context.Background())
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, os.Interrupt)

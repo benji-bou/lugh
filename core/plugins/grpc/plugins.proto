@@ -1,6 +1,6 @@
 syntax = "proto3";
 package grpc;
-option go_package = "github.com/benji-bou/SecPipeline/core/plugins/grpc";
+option go_package = "github.com/benji-bou/lugh/core/plugins/grpc";
 
 message RunInputConfig {
   bytes config = 1;

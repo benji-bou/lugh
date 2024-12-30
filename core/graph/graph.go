@@ -11,8 +11,8 @@ import (
 
 	"maps"
 
-	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/chantools"
+	"github.com/benji-bou/diwo"
+	"github.com/benji-bou/lugh/helper"
 	"github.com/dominikbraun/graph"
 	"github.com/dominikbraun/graph/draw"
 )
@@ -29,7 +29,7 @@ func WithIOWorkerVertexIterator[K any](it iter.Seq[IOWorkerVertex[K]]) IOGraphOp
 
 type IOGraphOption[K any] func(*IOGraph[K])
 
-func NewGraph[K any](opt ...IOGraphOption[K]) *IOGraph[K] {
+func New[K any](opt ...IOGraphOption[K]) *IOGraph[K] {
 	sg := &IOGraph[K]{}
 	sg.Graph = graph.New(func(spp IOWorkerVertex[K]) string {
 		return spp.GetName()
@@ -123,11 +123,11 @@ func (sg *IOGraph[K]) AddIOWorkerVertex(vertices iter.Seq[IOWorkerVertex[K]]) er
 	return nil
 }
 
-func (sg *IOGraph[K]) MergeVertexOutput(vertices iter.Seq[IOWorkerVertex[K]]) <-chan K {
-	resC := helper.IterMap(vertices, func(vertex IOWorkerVertex[K]) <-chan K {
+func (sg *IOGraph[K]) MergeVertexOutput(vertices iter.Seq[IOWorker[K]]) <-chan K {
+	resC := helper.IterMap(vertices, func(vertex IOWorker[K]) <-chan K {
 		return vertex.Output()
 	})
-	return chantools.Merge(slices.Collect(resC)...)
+	return diwo.Merge(slices.Collect(resC)...)
 
 }
 func (sg *IOGraph[K]) initialize() error {
@@ -146,8 +146,7 @@ func (sg *IOGraph[K]) initialize() error {
 
 		parentsMapValuesIterator := maps.Values(parentVertex)
 		slog.Debug("Initializing vertex set input", "vertex", currentVertexHash, "parents", slices.Collect(helper.IterMap(parentsMapValuesIterator, func(elem IOWorkerVertex[K]) string { return elem.GetName() })))
-
-		currentVertex.SetInput(sg.MergeVertexOutput(parentsMapValuesIterator))
+		currentVertex.SetInput(sg.MergeVertexOutput(helper.IterMap(parentsMapValuesIterator, func(elem IOWorkerVertex[K]) IOWorker[K] { return elem })))
 	}
 	slog.Debug("End of initializing graph")
 	return nil
@@ -157,7 +156,7 @@ func (sg *IOGraph[K]) start(ctx context.Context) <-chan error {
 	ctxSync := NewContext(ctx)
 	vertexMap, _ := sg.AdjacencyMap()
 	if len(vertexMap) == 0 {
-		return chantools.Once(errors.New("empty graph. No stage loaded"))
+		return diwo.Once(errors.New("empty graph. No stage loaded"))
 	}
 	errorsOutputC := make([]<-chan error, 0, len(vertexMap))
 	for vertexHash := range vertexMap {
@@ -172,13 +171,13 @@ func (sg *IOGraph[K]) start(ctx context.Context) <-chan error {
 	slog.Debug("Wait for vertex worker synchronization")
 	ctxSync.Synchronize()
 	slog.Debug("End of starting graph")
-	return chantools.Merge(errorsOutputC...)
+	return diwo.Merge(errorsOutputC...)
 }
 
 func (sg *IOGraph[K]) Run(ctx context.Context) <-chan error {
 	err := sg.initialize()
 	if err != nil {
-		return chantools.Once(err)
+		return diwo.Once(err)
 	}
 	return sg.start(ctx)
 }

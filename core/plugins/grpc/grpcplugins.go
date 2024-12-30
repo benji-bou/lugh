@@ -4,7 +4,7 @@ import (
 	context "context"
 	"errors"
 
-	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
+	"github.com/benji-bou/lugh/core/plugins/pluginapi"
 	goplugin "github.com/hashicorp/go-plugin"
 	grpc "google.golang.org/grpc"
 )

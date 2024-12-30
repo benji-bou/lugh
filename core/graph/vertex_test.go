@@ -6,17 +6,17 @@ import (
 	"testing"
 )
 
-type SynWorkerTestable struct {
+type ForwardWorkerTestable[K any] struct {
 }
 
-func (s SynWorkerTestable) Work(ctx context.Context, input []byte) ([][]byte, error) {
-	return [][]byte{input}, nil
+func (s ForwardWorkerTestable[K]) Work(ctx context.Context, input K) ([]K, error) {
+	return []K{input}, nil
 
 }
 
 func startNormalUseSyncWorker() (chan<- []byte, <-chan []byte, <-chan error) {
 	inputTestC := make(chan []byte)
-	v := NewIOWorkerFromWorker(SynWorkerTestable{})
+	v := NewIOWorkerFromWorker(ForwardWorkerTestable[[]byte]{})
 	v.SetInput(inputTestC)
 	outputTestC := v.Output()
 	errC := v.Run(NewContext(context.Background())) //, NewWorkerSynchronization()
@@ -25,7 +25,7 @@ func startNormalUseSyncWorker() (chan<- []byte, <-chan []byte, <-chan error) {
 }
 func startWithoutRunSyncWorker() (chan<- []byte, <-chan []byte, <-chan error) {
 	inputTestC := make(chan []byte)
-	v := NewIOWorkerFromWorker(SynWorkerTestable{})
+	v := NewIOWorkerFromWorker(ForwardWorkerTestable[[]byte]{})
 	v.SetInput(inputTestC)
 	outputTestC := v.Output()
 	return inputTestC, outputTestC, nil

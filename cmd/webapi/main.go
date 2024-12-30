@@ -6,18 +6,18 @@ package main
 
 // 	"os"
 
-// 	"github.com/benji-bou/SecPipeline/core/api"
-// 	"github.com/benji-bou/SecPipeline/core/api/ctrl"
-// 	"github.com/benji-bou/SecPipeline/helper"
-// 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
+// 	"github.com/benji-bou/lugh/core/api"
+// 	"github.com/benji-bou/lugh/core/api/ctrl"
+// 	"github.com/benji-bou/lugh/helper"
+// 	"github.com/benji-bou/lugh/core/plugins/grpc"
 
 // 	"github.com/urfave/cli/v2"
 // )
 
 // func main() {
 // 	app := &cli.App{
-// 		Name:  "SecPipeline",
-// 		Usage: "SecPipeline can be use to construct cyber security pipeline based on modules",
+// 		Name:  "lugh",
+// 		Usage: "lugh can be use to construct cyber security pipeline based on modules",
 // 		Flags: []cli.Flag{
 // 			&cli.StringFlag{
 // 				Name:  "draw-graph-only",

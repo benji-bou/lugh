@@ -12,7 +12,7 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 
-	"github.com/benji-bou/SecPipeline/helper"
+	"github.com/benji-bou/lugh/helper"
 	"gopkg.in/yaml.v3"
 )
 

@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/benji-bou/SecPipeline/core/graph"
+	"github.com/benji-bou/lugh/core/graph"
 	"gopkg.in/yaml.v3"
 )
 

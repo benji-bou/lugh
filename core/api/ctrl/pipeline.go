@@ -5,11 +5,11 @@ package ctrl
 // 	"io"
 // 	"log/slog"
 
-// 	"github.com/benji-bou/SecPipeline/core/api"
-// 	"github.com/benji-bou/SecPipeline/core/graph"
-// 	"github.com/benji-bou/SecPipeline/core/template"
-// 	"github.com/benji-bou/SecPipeline/helper"
-// 	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
+// 	"github.com/benji-bou/lugh/core/api"
+// 	"github.com/benji-bou/lugh/core/graph"
+// 	"github.com/benji-bou/lugh/core/template"
+// 	"github.com/benji-bou/lugh/helper"
+// 	"github.com/benji-bou/lugh/core/plugins/grpc"
 // 	"github.com/labstack/echo/v4"
 // )
 

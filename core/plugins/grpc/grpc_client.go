@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	sync "sync"
 
-	"github.com/benji-bou/SecPipeline/core/graph"
+	"github.com/benji-bou/lugh/core/graph"
 )
 
 type GRPCClient struct {

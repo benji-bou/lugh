@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/benji-bou/SecPipeline/helper"
+	"github.com/benji-bou/lugh/helper"
 	"github.com/labstack/echo/v4/middleware"
 )
 

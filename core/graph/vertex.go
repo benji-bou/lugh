@@ -5,15 +5,38 @@ import (
 	"log/slog"
 	"reflect"
 
-	"github.com/benji-bou/chantools"
+	"github.com/benji-bou/diwo"
 )
 
 type Worker[K any] interface {
 	Work(ctx context.Context, input K) ([]K, error)
 }
 
+type RunItem[K any] struct {
+	Err  error
+	Item K
+}
+
+type chanRunItem[K any] <-chan RunItem[K]
+
+func (cri chanRunItem[K]) toItemChan() <-chan K {
+	return diwo.Map(diwo.Filter(cri, func(element RunItem[K]) bool {
+		return element.Err == nil
+	}), func(item RunItem[K]) K {
+		return item.Item
+	})
+}
+
+func (cri chanRunItem[K]) toErrChan() <-chan error {
+	return diwo.Map(diwo.Filter(cri, func(element RunItem[K]) bool {
+		return element.Err != nil
+	}), func(item RunItem[K]) error {
+		return item.Err
+	})
+}
+
 type Runner[K any] interface {
-	Run(ctx Context, input <-chan K) (<-chan K, <-chan error)
+	Run(ctx Context, input <-chan K) <-chan RunItem[K]
 }
 
 type IOWorker[K any] interface {
@@ -75,7 +98,7 @@ func (v *syncWorker[K]) Output() <-chan K {
 
 func (v *syncWorker[K]) Run(ctx SyncContext) <-chan error {
 	ctx.Initializing()
-	return chantools.New(func(errC chan<- error, params ...any) {
+	return diwo.New(func(errC chan<- error) {
 		slog.Debug("start", "object", "syncWorker", "function", "Run", "name", reflect.TypeOf(v.worker))
 		defer func() {
 			slog.Debug("end, output close", "object", "syncWorker", "function", "Run", "name", reflect.TypeOf(v.worker))
@@ -95,7 +118,7 @@ func (v *syncWorker[K]) Run(ctx SyncContext) <-chan error {
 				slog.Debug("work success, result  sent", "data", output, "error", err, "object", "syncWorker", "function", "Run", "name", reflect.TypeOf(v.worker))
 			}
 		}
-	}, chantools.WithName[error](reflect.TypeOf(v.worker).String()))
+	}, diwo.WithName(reflect.TypeOf(v.worker).String()))
 
 }
 
@@ -118,9 +141,9 @@ func (v *runWorker[K]) Run(ctx SyncContext) <-chan error {
 	errC := make(chan error)
 	go func() {
 		slog.Debug("start", "object", "runWorker", "function", "Run", "name", reflect.TypeOf(v.runner))
-		outputC, errCRun := v.runner.Run(ctx, v.input)
-		chantools.ForwardTo(ctx, outputC, v.outputC)
-		chantools.ForwardTo(ctx, errCRun, errC)
+		outputC := v.runner.Run(ctx, v.input)
+		diwo.ForwardTo(chanRunItem[K](outputC).toItemChan(), v.outputC)
+		diwo.ForwardTo(chanRunItem[K](outputC).toErrChan(), errC)
 	}()
 	return errC
 }

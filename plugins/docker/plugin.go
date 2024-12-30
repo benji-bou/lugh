@@ -8,11 +8,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/benji-bou/SecPipeline/core/graph"
-	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
-	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
-	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/chantools"
+	"github.com/benji-bou/diwo"
+	"github.com/benji-bou/lugh/core/graph"
+	"github.com/benji-bou/lugh/core/plugins/grpc"
+	"github.com/benji-bou/lugh/core/plugins/pluginapi"
+	"github.com/benji-bou/lugh/helper"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 )
@@ -45,7 +45,7 @@ func (wh Docker) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
-func (wh Docker) Run(ctx graph.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+func (wh Docker) Run(ctx graph.Context, input <-chan []byte) <-chan graph.RunItem[[]byte] {
 	hostOpt := client.WithHostFromEnv()
 	if wh.config.Host != "" {
 		hostOpt = client.WithHost(wh.config.Host)
@@ -66,7 +66,7 @@ func (wh Docker) Run(ctx graph.Context, input <-chan []byte) (<-chan []byte, <-c
 	// The reader needs to be read completely for the pull operation to complete.
 	// If stdout is not required, consider using io.Discard instead of os.Stdout.
 	// io.Copy(os.Stdout, reader)
-	return chantools.NewWithErr(func(cDataStream chan<- []byte, eC chan<- error, params ...any) {
+	return diwo.New(func(cDataStream chan<- graph.RunItem[[]byte]) {
 
 		for i := range input {
 			inputCmd := strings.Fields(string(i))
@@ -99,7 +99,7 @@ func (wh Docker) Run(ctx graph.Context, input <-chan []byte) (<-chan []byte, <-c
 				panic(err)
 			}
 			byteResC := make(chan []byte)
-			writer := chantools.NewWriter(byteResC)
+			writer := diwo.NewWriter(byteResC)
 
 			wg := &sync.WaitGroup{}
 			wg.Add(1)
@@ -107,7 +107,7 @@ func (wh Docker) Run(ctx graph.Context, input <-chan []byte) (<-chan []byte, <-c
 				defer wg.Done()
 				for elem := range byteResC {
 					slog.Debug("send to output logs")
-					cDataStream <- elem
+					cDataStream <- graph.RunItem[[]byte]{Item: elem, Err: nil}
 				}
 				slog.Debug("end of forward data response ")
 			}()

@@ -8,13 +8,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/benji-bou/SecPipeline/core/graph"
-	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
-	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
-	"github.com/benji-bou/SecPipeline/helper"
+	"github.com/benji-bou/diwo"
+	"github.com/benji-bou/lugh/core/graph"
+	"github.com/benji-bou/lugh/core/plugins/grpc"
+	"github.com/benji-bou/lugh/core/plugins/pluginapi"
+	"github.com/benji-bou/lugh/helper"
 
-	martian "github.com/benji-bou/SecPipeline/plugins/proxy/martianProxy/martian"
-	"github.com/benji-bou/chantools"
+	martian "github.com/benji-bou/lugh/plugins/proxy/martianProxy/martian"
 	"github.com/swaggest/jsonschema-go"
 )
 
@@ -60,10 +60,10 @@ func (mp *MartianPlugin) Config(config []byte) error {
 func (mp MartianPlugin) Run(ctx graph.Context, _ <-chan []byte) (<-chan []byte, <-chan error) {
 	slog.Info("MartianPlugin run")
 
-	// We use the option WithNonManagedChannel because we want let the chantools.NewWriter handle the close
-	return chantools.NewWithErr(func(dataC chan<- []byte, errC chan<- error, params ...any) {
+	// We use the option WithNonManagedChannel because we want let the diwo.NewWriter handle the close
+	return diwo.New(func(dataC chan<- []byte, errC chan<- error, params ...any) {
 		slog.Debug("started routine", "function", "Run", "plugin", "MartianPlugin")
-		wC := chantools.NewWriter(dataC)
+		wC := diwo.NewWriter(dataC)
 		defer wC.Close()
 
 		opt, err := mp.getOptions(wC)
@@ -85,7 +85,7 @@ func (mp MartianPlugin) Run(ctx graph.Context, _ <-chan []byte) (<-chan []byte, 
 			errC <- err
 		}
 		slog.Debug("martian proxy stoped", "function", "Run", "plugin", "MartianPlugin")
-	}, chantools.WithNonManagedChannel[[]byte](), chantools.WithName[[]byte]("martianProxyRoutine"))
+	}, diwo.WithNonManagedChannel[[]byte](), diwo.WithName[[]byte]("martianProxyRoutine"))
 
 }
 
@@ -102,9 +102,9 @@ func (mp MartianPlugin) getOptions(wC io.WriteCloser) ([]helper.OptionError[mart
 
 	opt := []helper.OptionError[martian.Proxy]{
 		martian.WitDefaultWriter(wC),
-		martian.WithMitmCertsFile(time.Hour*24*365, "SecPipeline", "SecPipeline", false,
-			"/Users/benjaminbouachour/Private/Projects/SecPipeline/plugins/proxy/martianProxy/certs/cert.crt",
-			"/Users/benjaminbouachour/Private/Projects/SecPipeline/plugins/proxy/martianProxy/certs/cert.key",
+		martian.WithMitmCertsFile(time.Hour*24*365, "lugh", "lugh", false,
+			"/Users/benjaminbouachour/Private/Projects/lugh/plugins/proxy/martianProxy/certs/cert.crt",
+			"/Users/benjaminbouachour/Private/Projects/lugh/plugins/proxy/martianProxy/certs/cert.key",
 			false,
 		),
 	}

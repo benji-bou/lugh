@@ -7,11 +7,11 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/benji-bou/SecPipeline/core/graph"
-	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
-	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
-	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/chantools"
+	"github.com/benji-bou/lugh/core/graph"
+	"github.com/benji-bou/lugh/core/plugins/grpc"
+	"github.com/benji-bou/lugh/core/plugins/pluginapi"
+	"github.com/benji-bou/lugh/helper"
+	"github.com/benji-bou/diwo"
 	spider "github.com/benji-bou/gospider/core"
 )
 
@@ -37,9 +37,9 @@ func (mp *Spider) Config([]byte) error {
 }
 
 // Run expect a json array of strings listing sites to visists
-func (mp Spider) Run(context graph.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
+func (mp Spider) Run(context graph.Context, input <-chan []byte) <-chan []byte {
 
-	return chantools.NewWithErr(func(c chan<- []byte, eC chan<- error, params ...any) {
+	return diwo.New(func(c chan<- []byte) { {
 		inputSiteC := make(chan string)
 		mp.Worker(context, inputSiteC)
 		for {
@@ -63,7 +63,7 @@ func (mp Spider) Run(context graph.Context, input <-chan []byte) (<-chan []byte,
 }
 
 func (mp Spider) Worker(ctx context.Context, site <-chan string) (<-chan []byte, <-chan error) {
-	return chantools.NewWithErr(func(c chan<- []byte, eC chan<- error, params ...any) {
+	return diwo.New(func(c chan<- []byte) { {
 		var waitWorker sync.WaitGroup
 		waitWorker.Add(mp.workerCount)
 		for i := 0; i < mp.workerCount; i++ {

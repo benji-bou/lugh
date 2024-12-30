@@ -20,3 +20,15 @@ func Map[T any, A ~[]T, O any](input A, mapper func(elem T) O) []O {
 	}
 	return res
 }
+
+func Flatten[T any, A ~[]T, F ~[]A](input F) iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for _, subInput := range input {
+			for _, e := range subInput {
+				if !yield(e) {
+					return
+				}
+			}
+		}
+	}
+}

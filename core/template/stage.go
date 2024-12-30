@@ -4,8 +4,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/benji-bou/SecPipeline/core/graph"
-	"github.com/benji-bou/SecPipeline/core/plugins"
+	"github.com/benji-bou/lugh/core/graph"
+	"github.com/benji-bou/lugh/core/plugins"
 	"gopkg.in/yaml.v3"
 )
 

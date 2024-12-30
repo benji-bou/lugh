@@ -7,8 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
-	"github.com/benji-bou/SecPipeline/helper"
+	"github.com/benji-bou/lugh/core/plugins/pluginapi"
+	"github.com/benji-bou/lugh/helper"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 )
@@ -16,7 +16,7 @@ import (
 var DefaultHandshake = plugin.HandshakeConfig{
 	// This isn't required when using VersionedPlugins
 	ProtocolVersion:  1,
-	MagicCookieKey:   "BASIC_SECPIPELINE_PLUGIN",
+	MagicCookieKey:   "BASIC_lugh_PLUGIN",
 	MagicCookieValue: "hello",
 }
 
@@ -70,7 +70,7 @@ func withDefaultPath() PluginOption {
 			return nil
 		}
 	}
-	realPath := filepath.Join(p, ".secpipeline", "plugins")
+	realPath := filepath.Join(p, ".lugh", "plugins")
 	return WithPath(realPath)
 
 }

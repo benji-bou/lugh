@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
-	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
-	"github.com/benji-bou/SecPipeline/core/plugins/static/stdoutput"
-	"github.com/benji-bou/SecPipeline/core/plugins/static/transform"
+	"github.com/benji-bou/lugh/core/plugins/grpc"
+	"github.com/benji-bou/lugh/core/plugins/pluginapi"
+	"github.com/benji-bou/lugh/core/plugins/static/stdoutput"
+	"github.com/benji-bou/lugh/core/plugins/static/transform"
 )
 
 func LoadPlugin(name string, path string, config any) (pluginapi.IOWorkerPluginable, error) {

@@ -4,8 +4,8 @@ import (
 	context "context"
 	"log/slog"
 
-	"github.com/benji-bou/SecPipeline/core/graph"
-	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
+	"github.com/benji-bou/lugh/core/graph"
+	"github.com/benji-bou/lugh/core/plugins/pluginapi"
 )
 
 // Here is the gRPC server that GRPCClient talks to.

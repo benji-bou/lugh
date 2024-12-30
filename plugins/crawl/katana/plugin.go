@@ -6,11 +6,11 @@ import (
 	"log/slog"
 	"math"
 
-	"github.com/benji-bou/SecPipeline/core/graph"
-	"github.com/benji-bou/SecPipeline/core/plugins/grpc"
-	"github.com/benji-bou/SecPipeline/core/plugins/pluginapi"
-	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/chantools"
+	"github.com/benji-bou/diwo"
+	"github.com/benji-bou/lugh/core/graph"
+	"github.com/benji-bou/lugh/core/plugins/grpc"
+	"github.com/benji-bou/lugh/core/plugins/pluginapi"
+	"github.com/benji-bou/lugh/helper"
 	"github.com/projectdiscovery/katana/pkg/engine/standard"
 	"github.com/projectdiscovery/katana/pkg/output"
 	"github.com/projectdiscovery/katana/pkg/types"
@@ -49,25 +49,25 @@ func (mp *Katana) Config(conf []byte) error {
 	return nil
 }
 
-func (mp *Katana) Run(context graph.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
-	return chantools.NewWithErr(func(c chan<- []byte, eC chan<- error, params ...any) {
+func (mp *Katana) Run(context graph.Context, input <-chan []byte) <-chan []byte {
+	return diwo.New(func(c chan<- []byte) {
 		mp.option.OnResult = func(r output.Result) {
 			res, err := json.Marshal(r)
 			if err != nil {
-				eC <- fmt.Errorf("failed to Marshal katan output into json, %w", err)
+				slog.Error("", "error", fmt.Errorf("failed to Marshal katan output into json, %w", err))
 				return
 			}
 			c <- res
 		}
 		crawlerOptions, err := types.NewCrawlerOptions(mp.option)
 		if err != nil {
-			eC <- fmt.Errorf("build crawlerOptions failed: %w", err)
+			slog.Error("", "error", fmt.Errorf("build crawlerOptions failed: %w", err))
 			return
 		}
 		defer crawlerOptions.Close()
 		crawler, err := standard.New(crawlerOptions)
 		if err != nil {
-			eC <- fmt.Errorf("build crawler failed: %w", err)
+			slog.Error("", "error", fmt.Errorf("build crawler failed: %w", err))
 			return
 		}
 		defer crawler.Close()
@@ -82,7 +82,7 @@ func (mp *Katana) Run(context graph.Context, input <-chan []byte) (<-chan []byte
 				err = crawler.Crawl(string(i))
 				if err != nil {
 					slog.Error(fmt.Sprintf("could not crawl %s: %s", string(i), err.Error()))
-					// eC <- fmt.Errorf("could not crawl %s: %w", string(i), err)
+					// slog.Error("", "error", fmt.Errorf("could not crawl %s: %w", string(i), err))
 				}
 
 			}
