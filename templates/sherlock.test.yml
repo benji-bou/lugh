@@ -1,0 +1,33 @@
+name: sherlock
+description: osint
+author: bbo
+version: "0.1"
+stages:
+  inputRaw:
+    plugin: rawinput
+    config:
+      data: fogia
+  sherlock:
+    parents:
+      - inputRaw
+    plugin: docker
+    pipe:
+      - goTemplate:
+          format: string
+          pattern: " --no-color  {{ . }}"
+    config:
+      host: unix:///Users/benjamin/.orbstack/run/docker.sock
+      image: sherlock/sherlock:latest
+  transformOutput:
+    parents:
+      - sherlock
+    plugin: forward
+    pipe:
+      - split:
+          sep: "\n"
+        goTemplate:
+          format: string
+          pattern: "{{ trim . }}"
+        regex:
+          pattern: ^.*\[\+\].*(http.*\..*)$
+          select: 1

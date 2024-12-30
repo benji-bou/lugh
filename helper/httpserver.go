@@ -1,9 +1,11 @@
 package helper
 
 import (
+	"context"
 	"log"
 	"log/slog"
 	"os"
+	"time"
 
 	slogecho "github.com/samber/slog-echo"
 
@@ -37,6 +39,16 @@ type SrvOption func(e RouteConfigurable)
 type Srv struct {
 	*echo.Echo
 	Addr string
+	ctx  context.Context
+}
+
+func shutdown(e *echo.Echo) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := e.Shutdown(ctx); err != nil {
+		return err
+	}
+	return nil
 }
 
 func RunServer(opt ...SrvOption) error {
@@ -44,12 +56,32 @@ func RunServer(opt ...SrvOption) error {
 	e.HideBanner = true
 	e.Pre(middleware.RemoveTrailingSlash())
 
-	srv := &Srv{Echo: e, Addr: ":8080"}
+	srv := &Srv{Echo: e, Addr: ":8080", ctx: context.Background()}
 
 	for _, o := range opt {
 		o(srv)
 	}
-	return e.Start(srv.Addr)
+	defer shutdown(e)
+	errCServer := make(chan error)
+	go func() {
+		defer close(errCServer)
+		err := e.Start(srv.Addr)
+		if err != nil {
+			errCServer <- err
+		}
+	}()
+	select {
+	case <-srv.ctx.Done():
+		return nil
+	case err := <-errCServer:
+		return err
+	}
+}
+
+func WithContext(ctx context.Context) SrvOption {
+	return func(e RouteConfigurable) {
+		e.(*Srv).ctx = ctx
+	}
 }
 
 func WithLog() SrvOption {

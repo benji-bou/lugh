@@ -7,30 +7,23 @@ stages:
     plugin: rawinput
     config: 
       data: "bouachour.benjamin@gmail.com"
-  holehe:
+  generateHoleheCli:
     parents: 
       - inputName
-    plugin: docker
-    pipe: 
+    plugin: transform
+    config:
       - goTemplate:
           format: string
-          pattern: "holehe --only-used --no-color --no-clear {{ . }}"
+          pattern: "holehe --only-used --no-color --no-clear {{ . }}" 
+  holehe:
+    parents: 
+      - generateHoleheCli
+    plugin: docker
     config:
       host: unix:///Users/benjamin/.orbstack/run/docker.sock
       image: "holehe:latest"
-  transformResult: 
+
+  outputHolehe:
     parents: 
       - holehe
-    plugin: forward
-    pipe: 
-      - split:
-          sep: "\n"
-      - goTemplate: 
-          pattern: "{{ trim . }}"
-          format: string
-      - regex:
-          pattern: '^\[\+\](.*\..*)$'
-          select: 1
-      - goTemplate: 
-          format: string
-          pattern: "https://{{ trim  . }}"
+    plugin: output

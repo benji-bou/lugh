@@ -11,9 +11,9 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 
-	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/SecPipeline/pluginctl"
-	"github.com/benji-bou/chantools"
+	"github.com/benji-bou/lugh/core/plugins/grpc"
+	"github.com/benji-bou/lugh/core/plugins/pluginapi"
+	"github.com/benji-bou/lugh/helper"
 )
 
 type MemFilterOption = helper.Option[MemFilter]
@@ -66,49 +66,38 @@ func (mp *MemFilter) Config(config []byte) error {
 	return nil
 }
 
-func (mp *MemFilter) Run(context context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
-	return chantools.NewWithErr(func(c chan<- *pluginctl.DataStream, eC chan<- error, params ...any) {
-		for {
-			select {
-			case <-context.Done():
-				return
-			case i, ok := <-input:
-				if !ok {
-					return
-				}
-				slog.Debug("received data", "data", string(i.Data))
-				buff := &bytes.Buffer{}
-				if mp.goTemplateFilter != nil {
-					mp.goTemplateFilter.Execute(buff, i.Data)
-				}
-				if buff.Len() == 0 {
-					buff.Write(i.Data)
-				}
+func (mp *MemFilter) Work(context context.Context, input []byte, yield func(elem []byte) error) error {
 
-				hash := md5.Sum(buff.Bytes())
-				if _, exists := mp.inmem[hash]; exists {
-					continue
-				}
-				if len(mp.inmem) >= mp.buffSizeMax && mp.buffSizeMax > 0 {
-					for toDel := range mp.inmem {
-						delete(mp.inmem, toDel)
-						break
-					}
-				}
-				mp.inmem[hash] = struct{}{}
-				c <- i
-			}
+	slog.Debug("received data", "data", string(input))
+	buff := &bytes.Buffer{}
+	if mp.goTemplateFilter != nil {
+		mp.goTemplateFilter.Execute(buff, input)
+	}
+	if buff.Len() == 0 {
+		buff.Write(input)
+	}
+
+	hash := md5.Sum(buff.Bytes())
+	if _, exists := mp.inmem[hash]; exists {
+		return nil
+	}
+	if len(mp.inmem) >= mp.buffSizeMax && mp.buffSizeMax > 0 {
+		for toDel := range mp.inmem {
+			delete(mp.inmem, toDel)
+			break
 		}
-	})
+	}
+	mp.inmem[hash] = struct{}{}
+	return yield(input)
 }
 
 func main() {
 	go func() {
 		http.ListenAndServe("localhost:6061", nil)
 	}()
-	helper.SetLog(slog.LevelError)
-	plugin := pluginctl.NewPlugin("",
-		pluginctl.WithPluginImplementation(NewMemFilter()),
+	helper.SetLog(slog.LevelError, true)
+	plugin := grpc.NewPlugin("distinct",
+		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromWorker(NewMemFilter())),
 	)
 	plugin.Serve()
 }

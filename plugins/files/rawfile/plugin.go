@@ -8,9 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/SecPipeline/pluginctl"
-	"github.com/benji-bou/chantools"
+	"github.com/benji-bou/lugh/core/plugins/grpc"
+	"github.com/benji-bou/lugh/core/plugins/pluginapi"
+	"github.com/benji-bou/lugh/helper"
 )
 
 type RawFileOption = helper.Option[RawFile]
@@ -39,33 +39,33 @@ func (mp *RawFile) Config(config []byte) error {
 	mp.config = configRawFile
 	return nil
 }
-func (mp RawFile) Run(ctx context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
+func (mp RawFile) Consume(context context.Context, input <-chan []byte) error {
 	basePath, err := os.UserHomeDir()
 	if err != nil {
 		basePath = "./"
 	}
-	defaultFilePath := filepath.Join(basePath, ".secpipeline", "result.txt")
+	defaultFilePath := filepath.Join(basePath, ".lugh", "result.txt")
 	if mp.config.Filepath != "" {
 		defaultFilePath = mp.config.Filepath
 	}
 	f, err := os.OpenFile(defaultFilePath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
-		return nil, chantools.Once(fmt.Errorf("NewRawFile open file for  plugin failed, %w", err))
+		return fmt.Errorf("NewRawFile open file for  plugin failed, %w", err)
 	}
 	defer f.Close()
 	for i := range input {
-		_, err := f.Write(i.Data)
+		_, err := f.Write(i)
 		if err != nil {
-			return nil, chantools.Once(fmt.Errorf("NewRawFile write file plugin failed, %w", err))
+			return fmt.Errorf("NewRawFile write file plugin failed, %w", err)
 		}
 	}
-	return nil, nil
+	return nil
 }
 
 func main() {
-	helper.SetLog(slog.LevelError)
-	plugin := pluginctl.NewPlugin("rawfile",
-		pluginctl.WithPluginImplementation(NewRawFile()),
+	helper.SetLog(slog.LevelError, true)
+	plugin := grpc.NewPlugin("rawfile",
+		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromConsumer(NewRawFile())),
 	)
 	plugin.Serve()
 }

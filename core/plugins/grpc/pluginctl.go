@@ -1,4 +1,4 @@
-package pluginctl
+package grpc
 
 import (
 	"fmt"
@@ -7,7 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/benji-bou/SecPipeline/helper"
+	"github.com/benji-bou/lugh/core/plugins/pluginapi"
+	"github.com/benji-bou/lugh/helper"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 )
@@ -15,7 +16,7 @@ import (
 var DefaultHandshake = plugin.HandshakeConfig{
 	// This isn't required when using VersionedPlugins
 	ProtocolVersion:  1,
-	MagicCookieKey:   "BASIC_SECPIPELINE_PLUGIN",
+	MagicCookieKey:   "BASIC_lugh_PLUGIN",
 	MagicCookieValue: "hello",
 }
 
@@ -69,7 +70,7 @@ func withDefaultPath() PluginOption {
 			return nil
 		}
 	}
-	realPath := filepath.Join(p, ".secpipeline", "plugins")
+	realPath := filepath.Join(p, ".lugh", "plugins")
 	return WithPath(realPath)
 
 }
@@ -103,15 +104,15 @@ func WithCmdConfig(cmd *exec.Cmd) PluginOption {
 	}
 }
 
-func WithPluginImplementation(plugin SecPluginable) PluginOption {
+func WithPluginImplementation(plugin pluginapi.IOWorkerPluginable) PluginOption {
 	return func(p *Plugin) {
-		p.plugin = SecPipelineGRPCPlugin{Impl: plugin, Name: p.name}
+		p.plugin = IOWorkerGRPCPlugin{Impl: plugin, Name: p.name}
 	}
 }
 
 func WithGRPCPlugin() PluginOption {
 	return func(p *Plugin) {
-		p.plugin = SecPipelineGRPCPlugin{Name: p.name}
+		p.plugin = IOWorkerGRPCPlugin{Name: p.name}
 	}
 }
 
@@ -129,7 +130,7 @@ func (p Plugin) Serve() {
 	slog.Debug("stop serving plugin", "name", p.name)
 }
 
-func (p *Plugin) Connect() (SecPluginable, error) {
+func (p *Plugin) Connect() (pluginapi.IOWorkerPluginable, error) {
 	log := hclog.Default().Named(p.name)
 	log.SetLevel(hclog.Debug)
 	p.client = plugin.NewClient(&plugin.ClientConfig{
@@ -142,18 +143,18 @@ func (p *Plugin) Connect() (SecPluginable, error) {
 	})
 	cp, err := p.client.Client()
 	if err != nil {
-		slog.Error("failed to connect to plugin", "function", "Connect", "Object", "Plugin", "file", "pluginctl.go", "error", err)
+		slog.Error("failed to connect to plugin", "function", "Connect", "Object", "Plugin", "file", "grpc.go", "error", err)
 		return nil, fmt.Errorf("failed to connect to plugin, %w", err)
 	}
 	res, err := cp.Dispense("plugin")
 	if err != nil {
-		slog.Error("failed to dispense plugin", "function", "Connect", "Object", "Plugin", "file", "pluginctl.go", "error", err)
+		slog.Error("failed to dispense plugin", "function", "Connect", "Object", "Plugin", "file", "grpc.go", "error", err)
 		return nil, fmt.Errorf("failed to dispense plugin, %w", err)
 	}
 
-	resSec, ok := res.(SecPluginable)
+	resSec, ok := res.(pluginapi.IOWorkerPluginable)
 	if !ok {
-		slog.Error("failed to dispense plugin not a SecPluginable", "function", "Connect", "Object", "Plugin", "file", "pluginctl.go")
+		slog.Error("failed to dispense plugin not a SecPluginable", "function", "Connect", "Object", "Plugin", "file", "grpc.go")
 		return nil, fmt.Errorf("failed to dispense plugin  not a SecPluginable")
 	}
 	return resSec, nil

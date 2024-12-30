@@ -13,8 +13,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/SecPipeline/plugins/proxy/martianProxy/martian/modifiers"
+	"github.com/benji-bou/lugh/helper"
+	"github.com/benji-bou/lugh/plugins/proxy/martianProxy/martian/modifiers"
 	"github.com/google/martian/v3"
 	"github.com/google/martian/v3/cors"
 	"github.com/google/martian/v3/fifo"

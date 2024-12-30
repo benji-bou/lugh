@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/benji-bou/SecPipeline/helper"
+	"github.com/benji-bou/lugh/helper"
 	"github.com/google/martian/v3"
 	"github.com/google/martian/v3/har"
 	"github.com/google/martian/v3/parse"

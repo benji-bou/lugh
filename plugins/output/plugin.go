@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/benji-bou/SecPipeline/helper"
-	"github.com/benji-bou/SecPipeline/pluginctl"
-	"github.com/benji-bou/chantools"
+	"github.com/benji-bou/lugh/core/plugins/grpc"
+	"github.com/benji-bou/lugh/core/plugins/pluginapi"
+	"github.com/benji-bou/lugh/helper"
 )
 
 type OutputOption = helper.Option[Output]
@@ -26,26 +26,27 @@ func (mp Output) Config([]byte) error {
 	return nil
 }
 
-func (mp Output) Run(context context.Context, input <-chan *pluginctl.DataStream) (<-chan *pluginctl.DataStream, <-chan error) {
-	return chantools.NewWithErr(func(c chan<- *pluginctl.DataStream, eC chan<- error, params ...any) {
-		for {
-			select {
-			case <-context.Done():
-				return
-			case i, ok := <-input:
-				if !ok {
-					return
-				}
-				fmt.Printf("%s", string(i.Data))
+func (mp Output) Consume(context context.Context, input <-chan []byte) error {
+	for {
+		select {
+		case <-context.Done():
+			return nil
+		case i, ok := <-input:
+			if !ok {
+				return nil
+			}
+			_, err := fmt.Printf("%s", string(i))
+			if err != nil {
+				return fmt.Errorf("output failed %w", err)
 			}
 		}
-	})
+	}
 }
 
 func main() {
-	helper.SetLog(slog.LevelDebug)
-	plugin := pluginctl.NewPlugin("output",
-		pluginctl.WithPluginImplementation(NewOutput()),
+	helper.SetLog(slog.LevelDebug, true)
+	plugin := grpc.NewPlugin("output",
+		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromConsumer(NewOutput())),
 	)
 	plugin.Serve()
 }
