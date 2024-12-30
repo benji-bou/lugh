@@ -1,13 +1,12 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"math"
 
-	"github.com/benji-bou/diwo"
-	"github.com/benji-bou/lugh/core/graph"
 	"github.com/benji-bou/lugh/core/plugins/grpc"
 	"github.com/benji-bou/lugh/core/plugins/pluginapi"
 	"github.com/benji-bou/lugh/helper"
@@ -49,51 +48,36 @@ func (mp *Katana) Config(conf []byte) error {
 	return nil
 }
 
-func (mp *Katana) Run(context graph.Context, input <-chan []byte) <-chan []byte {
-	return diwo.New(func(c chan<- []byte) {
-		mp.option.OnResult = func(r output.Result) {
-			res, err := json.Marshal(r)
-			if err != nil {
-				slog.Error("", "error", fmt.Errorf("failed to Marshal katan output into json, %w", err))
-				return
-			}
-			c <- res
-		}
-		crawlerOptions, err := types.NewCrawlerOptions(mp.option)
+func (mp *Katana) Work(context context.Context, input []byte, yield func(elem []byte) error) error {
+	mp.option.OnResult = func(r output.Result) {
+		res, err := json.Marshal(r)
 		if err != nil {
-			slog.Error("", "error", fmt.Errorf("build crawlerOptions failed: %w", err))
+			slog.Error("", "error", fmt.Errorf("failed to Marshal katan output into json, %w", err))
 			return
 		}
-		defer crawlerOptions.Close()
-		crawler, err := standard.New(crawlerOptions)
-		if err != nil {
-			slog.Error("", "error", fmt.Errorf("build crawler failed: %w", err))
-			return
-		}
-		defer crawler.Close()
-		for {
-			select {
-			case <-context.Done():
-				return
-			case i, ok := <-input:
-				if !ok {
-					return
-				}
-				err = crawler.Crawl(string(i))
-				if err != nil {
-					slog.Error(fmt.Sprintf("could not crawl %s: %s", string(i), err.Error()))
-					// slog.Error("", "error", fmt.Errorf("could not crawl %s: %w", string(i), err))
-				}
-
-			}
-		}
-	})
+		yield(res)
+	}
+	crawlerOptions, err := types.NewCrawlerOptions(mp.option)
+	if err != nil {
+		return fmt.Errorf("build crawlerOptions failed: %w", err)
+	}
+	defer crawlerOptions.Close()
+	crawler, err := standard.New(crawlerOptions)
+	if err != nil {
+		return fmt.Errorf("build crawler failed: %w", err)
+	}
+	defer crawler.Close()
+	err = crawler.Crawl(string(input))
+	if err != nil {
+		return fmt.Errorf("could not crawl %s: %w", string(input), err)
+	}
+	return nil
 }
 
 func main() {
 	helper.SetLog(slog.LevelError, true)
 	plugin := grpc.NewPlugin("Katana",
-		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromRunner(NewKatana())),
+		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromWorker(NewKatana())),
 	)
 	plugin.Serve()
 }

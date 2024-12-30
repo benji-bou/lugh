@@ -32,9 +32,9 @@ func getPlugin(name string, path string) (pluginapi.IOWorkerPluginable, error) {
 	switch name {
 	case "transform":
 		t := transform.New()
-		return pluginapi.NewIOWorkerPluginFromSync(t, name), nil
+		return pluginapi.NewIOWorkerPluginFromWorker(t), nil
 	case "output", "stdoutput":
-		return pluginapi.NewIOWorkerPluginFromSync(stdoutput.Plugin{}, name), nil
+		return pluginapi.NewIOWorkerPluginFromConsumer(stdoutput.Plugin{}), nil
 	default:
 		if path != "" {
 			return grpc.NewPlugin(name, grpc.WithPath(path)).Connect()

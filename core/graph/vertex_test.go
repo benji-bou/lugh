@@ -9,9 +9,8 @@ import (
 type ForwardWorkerTestable[K any] struct {
 }
 
-func (s ForwardWorkerTestable[K]) Work(ctx context.Context, input K) ([]K, error) {
-	return []K{input}, nil
-
+func (s ForwardWorkerTestable[K]) Work(ctx context.Context, input K, yield func(elem K) error) error {
+	return yield(input)
 }
 
 func startNormalUseSyncWorker() (chan<- []byte, <-chan []byte, <-chan error) {

@@ -1,14 +1,13 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 
-	"github.com/benji-bou/diwo"
-	"github.com/benji-bou/lugh/core/graph"
 	"github.com/benji-bou/lugh/core/plugins/grpc"
 	"github.com/benji-bou/lugh/core/plugins/pluginapi"
 	"github.com/benji-bou/lugh/helper"
@@ -40,7 +39,7 @@ func (mp *RawFile) Config(config []byte) error {
 	mp.config = configRawFile
 	return nil
 }
-func (mp RawFile) Run(context graph.Context, input <-chan []byte) <-chan []byte {
+func (mp RawFile) Consume(context context.Context, input <-chan []byte) error {
 	basePath, err := os.UserHomeDir()
 	if err != nil {
 		basePath = "./"
@@ -51,22 +50,22 @@ func (mp RawFile) Run(context graph.Context, input <-chan []byte) <-chan []byte 
 	}
 	f, err := os.OpenFile(defaultFilePath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
-		return nil, diwo.Once(fmt.Errorf("NewRawFile open file for  plugin failed, %w", err))
+		return fmt.Errorf("NewRawFile open file for  plugin failed, %w", err)
 	}
 	defer f.Close()
 	for i := range input {
 		_, err := f.Write(i)
 		if err != nil {
-			return nil, diwo.Once(fmt.Errorf("NewRawFile write file plugin failed, %w", err))
+			return fmt.Errorf("NewRawFile write file plugin failed, %w", err)
 		}
 	}
-	return nil, nil
+	return nil
 }
 
 func main() {
 	helper.SetLog(slog.LevelError, true)
 	plugin := grpc.NewPlugin("rawfile",
-		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromRunner(NewRawFile())),
+		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromConsumer(NewRawFile())),
 	)
 	plugin.Serve()
 }

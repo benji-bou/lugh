@@ -1,13 +1,12 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 
-	"github.com/benji-bou/diwo"
-	"github.com/benji-bou/lugh/core/graph"
 	"github.com/benji-bou/lugh/core/plugins/grpc"
 	"github.com/benji-bou/lugh/core/plugins/pluginapi"
 	"github.com/benji-bou/lugh/helper"
@@ -42,35 +41,33 @@ func (wh Webhook) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
-func (wh Webhook) Run(context graph.Context, input <-chan []byte) <-chan []byte {
-	return diwo.New(func(cDataStream chan<- []byte, eC chan<- error, params ...any) {
-		method := wh.config.Method
-		if method == "" {
-			method = "POST"
-		}
-		path := wh.config.Path
-		if path == "" {
-			path = "/hook"
-		}
-		helper.RunServer(helper.WithAdd(method, path, func(c echo.Context) error {
-			body := c.Request().Body
-			defer body.Close()
-			bRaw, err := io.ReadAll(body)
-			if err != nil {
-				eC <- err
-			} else {
-				cDataStream <- bRaw
-			}
-			return nil
-		}))
-	})
+func (wh Webhook) Produce(context context.Context, yield func(elem []byte) error) error {
 
+	method := wh.config.Method
+	if method == "" {
+		method = "POST"
+	}
+	path := wh.config.Path
+	if path == "" {
+		path = "/hook"
+	}
+	return helper.RunServer(helper.WithContext(context), helper.WithAdd(method, path, func(c echo.Context) error {
+		body := c.Request().Body
+		defer body.Close()
+		bRaw, err := io.ReadAll(body)
+		if err != nil {
+			return err
+		} else {
+			yield(bRaw)
+		}
+		return nil
+	}))
 }
 
 func main() {
 	helper.SetLog(slog.LevelError, true)
 	plugin := grpc.NewPlugin("webhook",
-		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromRunner(NewWebhook())),
+		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromProducer(NewWebhook())),
 	)
 	plugin.Serve()
 }

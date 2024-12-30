@@ -60,8 +60,7 @@ func (tp *Plugin) Config(config []byte) error {
 	return nil
 }
 
-func (tp *Plugin) Work(ctx context.Context, input []byte) ([][]byte, error) {
-
+func (tp *Plugin) Work(ctx context.Context, input []byte, yield func(elem []byte) error) error {
 	deepCopy := func(input [][]byte) [][]byte {
 		copyInput := make([][]byte, len(input))
 		for i, in := range input {
@@ -79,10 +78,13 @@ func (tp *Plugin) Work(ctx context.Context, input []byte) ([][]byte, error) {
 		for _, i := range currentInput {
 			tmpNextInput, err := t.Transform(i)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			nextInput = append(nextInput, tmpNextInput...)
 		}
 	}
-	return nextInput, nil
+	for _, ni := range nextInput {
+		yield(ni)
+	}
+	return nil
 }

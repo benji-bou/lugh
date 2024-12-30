@@ -14,7 +14,13 @@ func (p Plugin) Config(config []byte) error {
 func (p Plugin) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
-func (p Plugin) Work(ctx context.Context, input []byte) ([][]byte, error) {
-	_, err := fmt.Printf("%s\n", string(input))
-	return nil, err
+
+func (p Plugin) Consume(ctx context.Context, input <-chan []byte) error {
+	for i := range input {
+		_, err := fmt.Printf("%s\n", string(i))
+		if err == nil {
+			return err
+		}
+	}
+	return nil
 }

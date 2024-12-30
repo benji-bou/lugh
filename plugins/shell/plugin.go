@@ -5,15 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"os/exec"
 
-	"github.com/benji-bou/lugh/core/graph"
 	"github.com/benji-bou/lugh/core/plugins/grpc"
 	"github.com/benji-bou/lugh/core/plugins/pluginapi"
 	"github.com/benji-bou/lugh/helper"
-	"github.com/benji-bou/diwo"
 )
 
 type ShellOption = helper.Option[Shell]
@@ -45,64 +44,60 @@ func (mp *Shell) Config(conf []byte) error {
 	return nil
 }
 
-func (mp Shell) startCmdAndPipeInput(context context.Context, input <-chan []byte) (<-chan []byte, <-chan error) {
-	return diwo.New(func(c chan<- []byte) { {
+func (mp Shell) Run(context context.Context, input <-chan []byte, yield func(elem []byte) error) error {
 
-		cmd := exec.Command(mp.cmd, mp.args...)
-		inputCmd, err := cmd.StdinPipe()
-		if err != nil {
-			eC <- err
-			return
-		}
-		defer inputCmd.Close()
-		outputCmd, err := cmd.StdoutPipe()
-		if err != nil {
-			eC <- err
-			return
-		}
-		defer outputCmd.Close()
-
-		err = cmd.Start()
-		defer cmd.Wait()
-		if err != nil {
-			eC <- err
-			return
-		}
-
-		go func(outputCmd io.Reader) {
-			reader := bufio.NewReader(outputCmd)
-			for {
-				str, err := reader.ReadString('\n')
-				if len(str) > 0 {
-					slog.Debug("shell output reader", "value", str)
-					c <- []byte(str)
-				}
-				if err != nil {
-					slog.Error("quit shell output reader", "error", err)
-					return
-				}
-			}
-		}(outputCmd)
-
-		for {
-			select {
-			case <-context.Done():
-				return
-			case i, ok := <-input:
-				if !ok {
-					return
-				}
-				inputCmd.Write(i)
-			}
-		}
-	})
-}
-
-func (mp Shell) Run(context graph.Context, input <-chan []byte) <-chan []byte {
-	if mp.cmd != "" {
-		return mp.startCmdAndPipeInput(context, input)
+	cmd := exec.Command(mp.cmd, mp.args...)
+	inputCmd, err := cmd.StdinPipe()
+	if err != nil {
+		return fmt.Errorf("shell stdinpipe failed %w", err)
 	}
-	return make(<-chan []byte), diwo.Once(errors.New("unsupported behavior"))
+	defer inputCmd.Close()
+	outputCmd, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("shell stdoutpipe failed %w", err)
+	}
+	defer outputCmd.Close()
+
+	err = cmd.Start()
+	defer cmd.Wait()
+	if err != nil {
+		return fmt.Errorf("shell cmd start failed %w", err)
+	}
+	errC := make(chan error)
+
+	go func(outputCmd io.Reader) {
+		defer close(errC)
+		scanner := bufio.NewScanner(outputCmd)
+		for scanner.Scan() {
+			line := scanner.Bytes()
+			if len(line) > 0 {
+				slog.Debug("shell output reader", "value", line)
+				yield(line)
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			errC <- err
+		}
+	}(outputCmd)
+
+	for {
+		select {
+		case <-context.Done():
+			return nil
+		case err := <-errC:
+			return err
+		case i, ok := <-input:
+			if !ok {
+				return nil
+			}
+			_, err := inputCmd.Write(i)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return errors.New("unsupported behavior")
 }
 
 func main() {

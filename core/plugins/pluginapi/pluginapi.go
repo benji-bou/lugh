@@ -14,14 +14,24 @@ type IOWorkerPluginable interface {
 	graph.IOWorker[[]byte]
 }
 
-type SyncWorkerPluginable interface {
+type WorkerPluginable interface {
 	PluginConfigurer
 	graph.Worker[[]byte]
 }
 
-type RunIOPluginable interface {
+type RunnerIOPluginable interface {
 	PluginConfigurer
 	graph.Runner[[]byte]
+}
+
+type ProducerIOPluginable interface {
+	PluginConfigurer
+	graph.Producer[[]byte]
+}
+
+type ConsumerIOPluginable interface {
+	PluginConfigurer
+	graph.Consumer[[]byte]
 }
 
 type ioWorker struct {
@@ -29,10 +39,18 @@ type ioWorker struct {
 	graph.IOWorker[[]byte]
 }
 
-func NewIOWorkerPluginFromSync(plugin SyncWorkerPluginable, name string) IOWorkerPluginable {
+func NewIOWorkerPluginFromWorker(plugin WorkerPluginable) ioWorker {
 	return ioWorker{plugin, graph.NewIOWorkerFromWorker(plugin)}
 }
 
-func NewIOWorkerPluginFromRunner(plugin RunIOPluginable) IOWorkerPluginable {
+func NewIOWorkerPluginFromRunner(plugin RunnerIOPluginable) ioWorker {
 	return ioWorker{plugin, graph.NewIOWorkerFromRunner(plugin)}
+}
+
+func NewIOWorkerPluginFromProducer(plugin ProducerIOPluginable) ioWorker {
+	return ioWorker{plugin, graph.NewIOWorkerFromProducer(plugin)}
+}
+
+func NewIOWorkerPluginFromConsumer(plugin ConsumerIOPluginable) ioWorker {
+	return ioWorker{plugin, graph.NewIOWorkerFromConsumer(plugin)}
 }

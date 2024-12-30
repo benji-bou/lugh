@@ -9,34 +9,19 @@ import (
 )
 
 type Worker[K any] interface {
-	Work(ctx context.Context, input K) ([]K, error)
-}
-
-type RunItem[K any] struct {
-	Err  error
-	Item K
-}
-
-type chanRunItem[K any] <-chan RunItem[K]
-
-func (cri chanRunItem[K]) toItemChan() <-chan K {
-	return diwo.Map(diwo.Filter(cri, func(element RunItem[K]) bool {
-		return element.Err == nil
-	}), func(item RunItem[K]) K {
-		return item.Item
-	})
-}
-
-func (cri chanRunItem[K]) toErrChan() <-chan error {
-	return diwo.Map(diwo.Filter(cri, func(element RunItem[K]) bool {
-		return element.Err != nil
-	}), func(item RunItem[K]) error {
-		return item.Err
-	})
+	Work(ctx context.Context, input K, yield func(elem K) error) error
 }
 
 type Runner[K any] interface {
-	Run(ctx Context, input <-chan K) <-chan RunItem[K]
+	Run(ctx context.Context, input <-chan K, yield func(elem K) error) error
+}
+
+type Producer[K any] interface {
+	Produce(ctx context.Context, yield func(elem K) error) error
+}
+
+type Consumer[K any] interface {
+	Consume(ctx context.Context, input <-chan K) error
 }
 
 type IOWorker[K any] interface {
@@ -72,86 +57,141 @@ func (dwv *DefaultIOWorkerVertex[K]) GetParents() []string {
 	return dwv.parents
 }
 
-type syncWorker[K any] struct {
+type ioWorker[K any] struct {
 	inputC  <-chan K
 	outputC chan K
-	worker  Worker[K]
 }
 
-func NewIOWorkerFromWorker[K any](worker Worker[K]) IOWorker[K] {
-	v := &syncWorker[K]{
-		outputC: make(chan K),
-		worker:  worker,
-	}
-
-	return v
-}
-
-func (v *syncWorker[K]) SetInput(input <-chan K) {
+func (v *ioWorker[K]) SetInput(input <-chan K) {
 
 	v.inputC = input
 }
 
-func (v *syncWorker[K]) Output() <-chan K {
+func (v *ioWorker[K]) Output() <-chan K {
 	return v.outputC
 }
 
-func (v *syncWorker[K]) Run(ctx SyncContext) <-chan error {
+type syncWorker[K any] struct {
+	ioWorker[K]
+	worker Worker[K]
+}
+
+func NewIOWorkerFromWorker[K any](worker Worker[K]) IOWorker[K] {
+	s := &syncWorker[K]{
+		ioWorker: ioWorker[K]{outputC: make(chan K)},
+		worker:   worker,
+	}
+
+	return s
+}
+
+func (s *syncWorker[K]) Run(ctx SyncContext) <-chan error {
 	ctx.Initializing()
 	return diwo.New(func(errC chan<- error) {
-		slog.Debug("start", "object", "syncWorker", "function", "Run", "name", reflect.TypeOf(v.worker))
+		typeName := reflect.TypeOf(s.worker)
+		slog.Debug("start", "object", "syncWorker", "function", "Run", "name", typeName)
 		defer func() {
-			slog.Debug("end, output close", "object", "syncWorker", "function", "Run", "name", reflect.TypeOf(v.worker))
-			close(v.outputC)
+			slog.Debug("end, output close", "object", "syncWorker", "function", "Run", "name", typeName)
+			close(s.outputC)
 		}()
 		ctx.Initialized()
-		for data := range v.inputC {
-			slog.Debug("received data start work", "data", data, "object", "syncWorker", "function", "Run", "name", reflect.TypeOf(v.worker))
-			output, err := v.worker.Work(ctx, data)
+		for data := range s.inputC {
+			slog.Debug("received data start work", "data", data, "object", "syncWorker", "function", "Run", "name", typeName)
+			err := s.worker.Work(ctx, data, func(elem K) error {
+				s.outputC <- elem
+				return nil
+			})
 			if err != nil {
-				slog.Error("work failed", "error", err, "object", "syncWorker", "function", "Run", "name", reflect.TypeOf(v.worker))
+				slog.Error("work failed", "error", err, "object", "syncWorker", "function", "Run", "name", typeName)
 				errC <- err
 				continue
 			}
-			for _, output := range output {
-				v.outputC <- output
-				slog.Debug("work success, result  sent", "data", output, "error", err, "object", "syncWorker", "function", "Run", "name", reflect.TypeOf(v.worker))
-			}
 		}
-	}, diwo.WithName(reflect.TypeOf(v.worker).String()))
+	}, diwo.WithName(reflect.TypeOf(s.worker).String()))
 
+}
+
+type producerWorker[K any] struct {
+	ioWorker[K]
+	producer Producer[K]
+}
+
+func NewIOWorkerFromProducer[K any](producer Producer[K]) IOWorker[K] {
+	v := &producerWorker[K]{
+		producer: producer,
+		ioWorker: ioWorker[K]{outputC: make(chan K)},
+	}
+	return v
+}
+
+func (p *producerWorker[K]) Run(ctx SyncContext) <-chan error {
+	ctx.Initializing()
+	return diwo.New(func(c chan<- error) {
+		defer close(p.outputC)
+		ctx.Initialized()
+		err := p.producer.Produce(ctx, func(elem K) error {
+			p.outputC <- elem
+			return nil
+		})
+		if err != nil {
+			c <- err
+		}
+
+	})
+}
+
+type consumerWorker[K any] struct {
+	ioWorker[K]
+	consumer Consumer[K]
+}
+
+func NewIOWorkerFromConsumer[K any](consumer Consumer[K]) IOWorker[K] {
+	v := &consumerWorker[K]{
+		consumer: consumer,
+		ioWorker: ioWorker[K]{outputC: make(chan K)},
+	}
+	return v
+}
+
+func (c *consumerWorker[K]) Run(ctx SyncContext) <-chan error {
+	ctx.Initializing()
+	return diwo.New(func(eC chan<- error) {
+		close(c.outputC)
+		ctx.Initialized()
+		err := c.consumer.Consume(ctx, c.inputC)
+		if err != nil {
+			eC <- err
+		}
+
+	})
 }
 
 type runWorker[K any] struct {
-	input   <-chan K
-	outputC chan K
-	runner  Runner[K]
-}
-
-func (v *runWorker[K]) SetInput(input <-chan K) {
-	v.input = input
-}
-
-func (v *runWorker[K]) Output() <-chan K {
-	return v.outputC
-}
-
-func (v *runWorker[K]) Run(ctx SyncContext) <-chan error {
-	ctx.Initializing()
-	errC := make(chan error)
-	go func() {
-		slog.Debug("start", "object", "runWorker", "function", "Run", "name", reflect.TypeOf(v.runner))
-		outputC := v.runner.Run(ctx, v.input)
-		diwo.ForwardTo(chanRunItem[K](outputC).toItemChan(), v.outputC)
-		diwo.ForwardTo(chanRunItem[K](outputC).toErrChan(), errC)
-	}()
-	return errC
+	ioWorker[K]
+	runner Runner[K]
 }
 
 func NewIOWorkerFromRunner[K any](runner Runner[K]) IOWorker[K] {
 	v := &runWorker[K]{
-		runner:  runner,
-		outputC: make(chan K),
+		runner:   runner,
+		ioWorker: ioWorker[K]{outputC: make(chan K)},
 	}
 	return v
+}
+
+func (v *runWorker[K]) Run(ctx SyncContext) <-chan error {
+	ctx.Initializing()
+	return diwo.New(func(c chan<- error) {
+		defer close(v.outputC)
+		slog.Debug("start", "object", "runWorker", "function", "Run", "name", reflect.TypeOf(v.runner))
+		ctx.Initialized()
+		err := v.runner.Run(ctx, v.inputC, func(elem K) error {
+			v.outputC <- elem
+			return nil
+		})
+
+		if err != nil {
+			c <- err
+		}
+	})
 }
