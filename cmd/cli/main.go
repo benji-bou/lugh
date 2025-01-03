@@ -51,7 +51,7 @@ func main() {
 
 func DrawGraphOnly(c *cli.Context) error {
 	tplPath := c.String("template")
-	tpl, err := template.NewFileTemplate(tplPath)
+	tpl, err := template.NewFile(tplPath)
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func DrawGraphOnly(c *cli.Context) error {
 
 func RunTemplate(c *cli.Context) error {
 	tplPath := c.String("template")
-	tpl, err := template.NewFileTemplate(tplPath)
+	tpl, err := template.NewFile(tplPath)
 	if err != nil {
 		slog.Error("failed to start template", "error", err)
 		return err
