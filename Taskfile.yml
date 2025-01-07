@@ -1,0 +1,96 @@
+version: "3"
+
+vars:
+  APP_NAME: "lugh"
+  DOCKER_IMAGE: "{{.APP_NAME}}:latest"
+  MAIN_FILE: "./cmd/cli/main.go"
+  LINT_TOOL: "golangci-lint"
+  ENV_FILE: ".env"
+  GOCMD: "go"
+  GOBUILD: "{{.GOCMD}} build"
+  GOBUILD_DEBUG: '{{.GOCMD}} build -gcflags="all=-N -l"'
+  GOMOD: "{{.GOCMD}} mod"
+  PROTOC: "protoc"
+  PROTO_DIR: "./core/plugins/grpc"
+  PROTO_SRC: "{{.PROTO_DIR}}/plugins.proto"
+  CMD_DIR: "./cmd/cli"
+  PLUGINS_DIR: "./plugins"
+  BIN_DIR: "./bin"
+  PLUGIN_BIN_DIR: "{{.BIN_DIR}}/plugins"
+  CMD_OUTPUT: "{{.BIN_DIR}}/cli"
+
+tasks:
+  default:
+    desc: Test and Build everything
+    cmds:
+      - task: protobuf
+      - task: test
+      - task: lint
+      - task: build
+      - task: build_plugins
+
+  deps:
+    desc: Install dependencies
+    cmds:
+      - go mod tidy
+
+  build:
+    desc: Build the main CLI
+    deps:
+      - deps
+    cmds:
+      - echo "Building main CLI..."
+      - "{{.GOBUILD}} -o {{.CMD_OUTPUT}} {{.CMD_DIR}}/main.go"
+
+  build_plugins:
+    deps:
+      - deps
+    vars:
+      PLUGINS:
+        sh: find {{.PLUGINS_DIR}} -type f -name '*.go' -exec sh -c 'if grep -q "^package main$" "{}"; then echo $(dirname {}); fi' \;
+    desc: Build plugins
+
+    cmds:
+      - echo "Building plugins..."
+      - mkdir -p '{{.PLUGIN_BIN_DIR}}'
+      - for: { var: PLUGINS }
+        cmd: "{{.GOBUILD}} -o {{.PLUGIN_BIN_DIR}}/{{base .ITEM}} {{.ITEM}}"
+
+  protobuf:
+    desc: Compile protobuf files
+    cmds:
+      - echo "Compiling protobuf files..."
+      - "{{.PROTOC}} --go_out=./ --go_opt=paths=source_relative --go-grpc_out=./ --go-grpc_opt=paths=source_relative {{.PROTO_SRC}}"
+
+  clean:
+    desc: Clean build outputs
+    cmds:
+      - echo "Cleaning..."
+      - rm -rf '{{.BIN_DIR}}'
+      - go clean -cache -testcache -modcache
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test ./... -v
+    silent: true
+
+  lint:
+    desc: Run linters
+    cmds:
+      - "{{.LINT_TOOL}} run --fix ./..."
+
+  run:
+    desc: Run the application
+    cmds:
+      - source {{.ENV_FILE}}
+      - go run {{.MAIN_FILE}}
+
+  watch:
+    desc: Rebuild and run on file changes (requires fswatch)
+    cmds:
+      - |
+        fswatch -o . | while read; do
+          task build
+          task run
+        done
