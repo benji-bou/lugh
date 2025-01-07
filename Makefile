@@ -1,6 +1,6 @@
 # Go parameters
 GOCMD=go
-GOBUILD=$(GOCMD) build 
+GOBUILD=$(GOCMD) build
 GOBUILD_DEBUG=$(GOCMD) build -gcflags="all=-N -l"
 GOMOD=$(GOCMD) mod
 
@@ -24,11 +24,11 @@ CMD_OUTPUT=$(BIN_DIR)/cli
 
 all: plugins_pb build build_plugins
 
-build: 
+build:
 	@echo "Building main CLI..."
 	@$(GOBUILD_DEBUG) -o $(CMD_OUTPUT) $(CMD_DIR)/main.go
 
-build_plugins: 
+build_plugins:
 	@echo "Building plugin..."
 	@mkdir -p $(BIN_DIR)/plugins
 		@find $(PLUGINS_DIR) -type f -name '*.go' -exec sh -c 'if grep -q "^package main$$" "{}"; then dir=$$(dirname {}); output=$$(basename $$dir); $(GOBUILD_DEBUG) -o $(BIN_DIR)/plugins/$$output {}; fi' \;

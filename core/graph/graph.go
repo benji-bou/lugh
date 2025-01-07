@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
+	"maps"
 	"os"
 	"slices"
-
-	"maps"
 
 	"github.com/benji-bou/diwo"
 	"github.com/benji-bou/lugh/helper"
@@ -17,13 +16,18 @@ import (
 	"github.com/dominikbraun/graph/draw"
 )
 
+type NeighbourSearchFunc func() (map[string]map[string]graph.Edge[string], error)
+
 type IOGraph[K any] struct {
 	graph.Graph[string, IOWorkerVertex[K]]
 }
 
 func WithIOWorkerVertexIterator[K any](it iter.Seq[IOWorkerVertex[K]]) IOGraphOption[K] {
 	return func(configure *IOGraph[K]) {
-		configure.AddIOWorkerVertex(it)
+		err := configure.AddIOWorkerVertex(it)
+		if err != nil {
+			slog.Warn("failed to add IOWorkerVertex iterator", "error", err)
+		}
 	}
 }
 
@@ -43,7 +47,7 @@ func New[K any](opt ...IOGraphOption[K]) *IOGraph[K] {
 }
 
 func (sg *IOGraph[K]) DrawGraph(filepath string) error {
-	file, _ := os.Create(filepath)
+	file, _ := os.Create(filepath) // #nosec G304
 	return draw.DOT(sg, file)
 }
 
@@ -55,7 +59,7 @@ func (sg *IOGraph[K]) PredecessorVertices() (map[string]map[string]IOWorkerVerte
 	return sg.NeighborVertices(sg.PredecessorMap)
 }
 
-func (sg *IOGraph[K]) NeighborVertices(orientedNeighborSearch func() (map[string]map[string]graph.Edge[string], error)) (map[string]map[string]IOWorkerVertex[K], error) {
+func (sg *IOGraph[K]) NeighborVertices(orientedNeighborSearch NeighbourSearchFunc) (map[string]map[string]IOWorkerVertex[K], error) {
 	verticesMaps, err := orientedNeighborSearch()
 	if err != nil {
 		return nil, err
@@ -82,15 +86,15 @@ func (sg *IOGraph[K]) IterParentlessVertex() iter.Seq[IOWorker[K]] {
 	return sg.iterOrientedNeighborlessVertex(sg.PredecessorMap)
 }
 
-func (sg *IOGraph[K]) iterOrientedNeighborlessVertex(orientedNeighborSearch func() (map[string]map[string]graph.Edge[string], error)) iter.Seq[IOWorker[K]] {
+func (sg *IOGraph[K]) iterOrientedNeighborlessVertex(orientedNeighborSearch NeighbourSearchFunc) iter.Seq[IOWorker[K]] {
 	return func(yield func(IOWorker[K]) bool) {
 		neighborMap, err := orientedNeighborSearch()
 		if err != nil {
 			panic(err)
 		}
-		for vertexId, neighbors := range neighborMap {
+		for vertexID, neighbors := range neighborMap {
 			if len(neighbors) == 0 {
-				vertex, err := sg.Vertex(vertexId)
+				vertex, err := sg.Vertex(vertexID)
 				if err != nil {
 					continue
 				}
@@ -123,13 +127,13 @@ func (sg *IOGraph[K]) AddIOWorkerVertex(vertices iter.Seq[IOWorkerVertex[K]]) er
 	return nil
 }
 
-func (sg *IOGraph[K]) MergeVertexOutput(vertices iter.Seq[IOWorker[K]]) <-chan K {
+func (*IOGraph[K]) MergeVertexOutput(vertices iter.Seq[IOWorker[K]]) <-chan K {
 	resC := helper.IterMap(vertices, func(vertex IOWorker[K]) <-chan K {
 		return vertex.Output()
 	})
 	return diwo.Merge(slices.Collect(resC)...)
-
 }
+
 func (sg *IOGraph[K]) initialize() error {
 	slog.Debug("Initializing graph")
 	parentsMap, err := sg.PredecessorVertices()
@@ -145,8 +149,24 @@ func (sg *IOGraph[K]) initialize() error {
 		}
 
 		parentsMapValuesIterator := maps.Values(parentVertex)
-		slog.Debug("Initializing vertex set input", "vertex", currentVertexHash, "parents", slices.Collect(helper.IterMap(parentsMapValuesIterator, func(elem IOWorkerVertex[K]) string { return elem.GetName() })))
-		currentVertex.SetInput(sg.MergeVertexOutput(helper.IterMap(parentsMapValuesIterator, func(elem IOWorkerVertex[K]) IOWorker[K] { return elem })))
+		slog.Debug("Initializing vertex set input",
+			"vertex", currentVertexHash,
+			"parents", slices.Collect(
+				helper.IterMap(parentsMapValuesIterator,
+					func(elem IOWorkerVertex[K]) string {
+						return elem.GetName()
+					},
+				),
+			))
+		currentVertex.SetInput(
+			sg.MergeVertexOutput(
+				helper.IterMap(parentsMapValuesIterator,
+					func(elem IOWorkerVertex[K]) IOWorker[K] {
+						return elem
+					},
+				),
+			),
+		)
 	}
 	slog.Debug("End of initializing graph")
 	return nil

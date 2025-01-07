@@ -36,7 +36,7 @@ func NewKatana(opt ...KatanaOption) *Katana {
 	return helper.ConfigurePtr(&Katana{option: options}, opt...)
 }
 
-func (mp Katana) GetInputSchema() ([]byte, error) {
+func (*Katana) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
@@ -48,14 +48,17 @@ func (mp *Katana) Config(conf []byte) error {
 	return nil
 }
 
-func (mp *Katana) Work(context context.Context, input []byte, yield func(elem []byte) error) error {
+func (mp *Katana) Work(_ context.Context, input []byte, yield func(elem []byte) error) error {
 	mp.option.OnResult = func(r output.Result) {
 		res, err := json.Marshal(r)
 		if err != nil {
 			slog.Error("", "error", fmt.Errorf("failed to Marshal katan output into json, %w", err))
 			return
 		}
-		yield(res)
+		err = yield(res)
+		if err != nil {
+			slog.Error("failed to yield result", "error", err)
+		}
 	}
 	crawlerOptions, err := types.NewCrawlerOptions(mp.option)
 	if err != nil {

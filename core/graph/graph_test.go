@@ -14,8 +14,8 @@ type testConfig struct {
 	input [][]string
 }
 
-func generateWorkerProducer[K any](ctx SyncContext, elements ...K) (IOWorker[K], func()) {
-	worker := NewIOWorkerFromWorker(ForwardWorkerTestable[K]{})
+func generateWorkerProducer[K any](ctx SyncContext, elements ...K) (worker IOWorker[K], workerStarter func()) {
+	worker = NewIOWorkerFromWorker(ForwardWorkerTestable[K]{})
 	inputC := diwo.FromSlice(elements)
 	worker.SetInput(inputC)
 	return worker, func() {
@@ -23,11 +23,10 @@ func generateWorkerProducer[K any](ctx SyncContext, elements ...K) (IOWorker[K],
 	}
 }
 
-func runWorkerConfig(tc testConfig, ctx SyncContext) ([]IOWorker[string], func()) {
-
-	workers := make([]IOWorker[string], 0, len(tc.input))
+func runWorkerConfig(tc testConfig, ctx SyncContext) (workers []IOWorker[string], workersStarter func()) {
+	workers = make([]IOWorker[string], 0, len(tc.input))
 	runs := make([]func(), 0, len(tc.input))
-	for i := 0; i < len(tc.input); i++ {
+	for i := range tc.input {
 		w, run := generateWorkerProducer(ctx, tc.input[i]...)
 		workers = append(workers, w)
 		runs = append(runs, run)
@@ -38,13 +37,14 @@ func runWorkerConfig(tc testConfig, ctx SyncContext) ([]IOWorker[string], func()
 		}
 	}
 }
-func TestMergeVertexOutput(t *testing.T) {
 
+func TestMergeVertexOutput(t *testing.T) {
 	testCases := []testConfig{
 		{"empty input", [][]string{}},
 		{"single element input", [][]string{{"element1"}}},
 		{"1D multiple elements input", [][]string{{"element1"}, {"element2"}, {"element3"}}},
-		{"2D multiple elements input", [][]string{{"element1a", "element1b", "element1c"}, {"element2a", "element2b", "element2c"}, {"element3a", "element3b", "element3c"}}}}
+		{"2D multiple elements input", [][]string{{"element1a", "element1b", "element1c"}, {"element2a", "element2b", "element2c"}, {"element3a", "element3b", "element3c"}}},
+	}
 
 	g := New[string]()
 	for _, tc := range testCases {

@@ -22,27 +22,27 @@ type Webhook struct {
 	config ConfigWebhook
 }
 
-func (mp *Webhook) Config(config []byte) error {
-	configWebhook := ConfigWebhook{}
-	err := json.Unmarshal(config, &configWebhook)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal json for Webhook config: %w", err)
-	}
-	mp.config = configWebhook
-	return nil
-}
-
 type WebhookOption = helper.Option[Webhook]
 
 func NewWebhook(opt ...WebhookOption) *Webhook {
 	return helper.ConfigurePtr(&Webhook{}, opt...)
 }
-func (wh Webhook) GetInputSchema() ([]byte, error) {
+
+func (wh *Webhook) Config(config []byte) error {
+	configWebhook := ConfigWebhook{}
+	err := json.Unmarshal(config, &configWebhook)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal json for Webhook config: %w", err)
+	}
+	wh.config = configWebhook
+	return nil
+}
+
+func (*Webhook) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
-func (wh Webhook) Produce(context context.Context, yield func(elem []byte) error) error {
-
+func (wh *Webhook) Produce(ctx context.Context, yield func(elem []byte) error) error {
 	method := wh.config.Method
 	if method == "" {
 		method = "POST"
@@ -51,14 +51,16 @@ func (wh Webhook) Produce(context context.Context, yield func(elem []byte) error
 	if path == "" {
 		path = "/hook"
 	}
-	return helper.RunServer(helper.WithContext(context), helper.WithAdd(method, path, func(c echo.Context) error {
+	return helper.RunServer(helper.WithContext(ctx), helper.WithAdd(method, path, func(c echo.Context) error {
 		body := c.Request().Body
 		defer body.Close()
 		bRaw, err := io.ReadAll(body)
 		if err != nil {
 			return err
-		} else {
-			yield(bRaw)
+		}
+		err = yield(bRaw)
+		if err != nil {
+			return err
 		}
 		return nil
 	}))

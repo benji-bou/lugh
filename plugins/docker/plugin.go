@@ -17,6 +17,10 @@ import (
 	"github.com/docker/docker/client"
 )
 
+const (
+	BuffSize int = 1024
+)
+
 type ConfigDocker struct {
 	Image string `json:"image"`
 	Host  string `json:"host"`
@@ -26,22 +30,23 @@ type Docker struct {
 	config ConfigDocker
 }
 
-func (mp *Docker) Config(config []byte) error {
-	configDocker := ConfigDocker{}
-	err := json.Unmarshal(config, &configDocker)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal json for Docker config: %w", err)
-	}
-	mp.config = configDocker
-	return nil
-}
-
 type DockerOption = helper.Option[Docker]
 
 func NewDocker(opt ...DockerOption) *Docker {
 	return helper.ConfigurePtr(&Docker{}, opt...)
 }
-func (wh Docker) GetInputSchema() ([]byte, error) {
+
+func (wh *Docker) Config(config []byte) error {
+	configDocker := ConfigDocker{}
+	err := json.Unmarshal(config, &configDocker)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal json for Docker config: %w", err)
+	}
+	wh.config = configDocker
+	return nil
+}
+
+func (Docker) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
@@ -67,15 +72,14 @@ func (wh Docker) Work(ctx context.Context, input []byte, yield func([]byte) erro
 		return fmt.Errorf("docker plugin create container failed %w", err)
 	}
 
-	if err := cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+	if err = cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
 		return fmt.Errorf("docker plugin start container failed %w", err)
-
 	}
 	slog.Debug("start  container wait")
 
 	statusCh, errCh := cli.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
 	select {
-	case err := <-errCh:
+	case err = <-errCh:
 		if err != nil {
 			return fmt.Errorf("docker plugin wait container failed %w", err)
 		}
@@ -87,15 +91,18 @@ func (wh Docker) Work(ctx context.Context, input []byte, yield func([]byte) erro
 		return fmt.Errorf("docker plugin get container logs failed %w", err)
 	}
 
-	buff := make([]byte, 1024)
+	buff := make([]byte, BuffSize)
 	for {
 		n, err := out.Read(buff)
 		if n > 0 {
-			yield(slices.Clone(buff[:n]))
+			err = yield(slices.Clone(buff[:n]))
+			if err != nil {
+				slog.Error("failed to yield output logs stream from container", "error", err)
+			}
 		}
 		if errors.Is(err, io.EOF) {
 			return nil
-		} else {
+		} else if err != nil {
 			return fmt.Errorf("failed to read output logs stream from container: %w", err)
 		}
 	}

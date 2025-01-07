@@ -22,30 +22,29 @@ func NewLeaksPlugin(opt ...LeaksPluginOption) LeaksPlugin {
 	return helper.Configure(LeaksPlugin{}, opt...)
 }
 
-func (mp LeaksPlugin) GetInputSchema() ([]byte, error) {
+func (LeaksPlugin) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
-func (mp LeaksPlugin) Config([]byte) error {
+func (LeaksPlugin) Config([]byte) error {
 	return nil
 }
 
-func (mp LeaksPlugin) Work(context context.Context, input []byte, yield func(elem []byte) error) error {
+func (LeaksPlugin) Work(_ context.Context, input []byte, yield func(elem []byte) error) error {
 	slog.Info("start run", "function", "Run", "plugin", "LeaksPlugin")
 	detector, err := detect.NewDetectorDefaultConfig()
 	if err != nil {
 		slog.Error("failed to start Run", "function", "Run", "plugin", "LeaksPlugin", "error", err)
-		return fmt.Errorf("Run Leaks failed, unable to create detector %w", err)
+		return fmt.Errorf("run Leaks failed, unable to create detector %w", err)
 	}
 	slog.Debug("received fragment to search for leaks", "function", "Run", "plugin", "LeaksPlugin")
 	res := detector.Detect(detect.Fragment{Raw: string(input)})
-	rawJson, err := json.Marshal(res)
+	rawJSON, err := json.Marshal(res)
 	if err != nil {
 		slog.Error("failed to json marshal report finding", "function", "Run", "plugin", "LeaksPlugin", "error", err)
 		return fmt.Errorf("failed to json marshal report finding: %w", err)
-
 	}
-	return yield(rawJson)
+	return yield(rawJSON)
 }
 
 func main() {

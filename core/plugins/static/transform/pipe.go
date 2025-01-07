@@ -24,8 +24,7 @@ type goTemplate struct {
 }
 
 func (gt goTemplate) Transform(in []byte) ([][]byte, error) {
-
-	var dataInput interface{}
+	var dataInput any
 	err := gt.unmarshaler(in, &dataInput)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal input: %w", err)
@@ -36,17 +35,16 @@ func (gt goTemplate) Transform(in []byte) ([][]byte, error) {
 		return nil, fmt.Errorf("failed to execute template: %w", err)
 	}
 	return [][]byte{buff.Bytes()}, nil
-
 }
 
-func WithJsonInput() goTemplateOption {
+func WithJSONInput() goTemplateOption {
 	return func(configure *goTemplate) error {
 		configure.unmarshaler = json.Unmarshal
 		return nil
 	}
 }
 
-func WithYamlInput() goTemplateOption {
+func WithYAMLInput() goTemplateOption {
 	return func(configure *goTemplate) error {
 		configure.unmarshaler = yaml.Unmarshal
 		return nil
@@ -57,7 +55,9 @@ func WithStringInput() goTemplateOption {
 	return func(configure *goTemplate) error {
 		configure.unmarshaler = func(in []byte, v any) error {
 			switch vT := v.(type) {
-			case *interface{}:
+			case *string:
+				*vT = string(in)
+			case *any:
 				*vT = string(in)
 			}
 			return nil
@@ -95,9 +95,9 @@ func GoTemplateWithConfig(config GoTemplateConfig) (Transformer, error) {
 	case "string":
 		opt = append(opt, WithStringInput())
 	case "yaml":
-		opt = append(opt, WithYamlInput())
+		opt = append(opt, WithYAMLInput())
 	default:
-		opt = append(opt, WithJsonInput())
+		opt = append(opt, WithJSONInput())
 	}
 	opt = append(opt, WithTemplatePattern(config.Pattern))
 	return GoTemplate(opt...)
@@ -133,11 +133,12 @@ func Regex(regexpPattern string, n int) (Transformer, error) {
 		resAllArr := regex.FindAllSubmatch(elem, -1)
 		resArr := make([][]byte, 0, len(resAllArr))
 		for _, match := range resAllArr {
-			if len(match) == 0 {
+			switch l := len(match); {
+			case l == 0:
 				continue
-			} else if n >= len(match) {
+			case n >= l:
 				resArr = append(resArr, match[0])
-			} else {
+			default:
 				resArr = append(resArr, match[n])
 			}
 		}
@@ -148,8 +149,8 @@ func Regex(regexpPattern string, n int) (Transformer, error) {
 
 func InsertString(insert string) Transformer {
 	return Map(func(elem []byte) ([]byte, error) {
-		res := append(elem, []byte(insert)...)
-		return res, nil
+		elem = append(elem, []byte(insert)...)
+		return elem, nil
 	})
 }
 
@@ -161,7 +162,7 @@ func Split(sep string) Transformer {
 	})
 }
 
-func NewTransform(name string, config yaml.Node) (Transformer, error) {
+func NewTransform(name string, config *yaml.Node) (Transformer, error) {
 	switch name {
 	case "goTemplate":
 		configGoTpl := GoTemplateConfig{}
@@ -206,11 +207,11 @@ func NewTransform(name string, config yaml.Node) (Transformer, error) {
 	}
 }
 
-func errTransform(err error) Transformer {
-	return Map(func([]byte) ([]byte, error) {
-		return nil, err
-	})
-}
+// func errTransform(err error) Transformer {
+// 	return Map(func([]byte) ([]byte, error) {
+// 		return nil, err
+// 	})
+// }
 
 func forwardTransform() Transformer {
 	return Map(func(input []byte) ([]byte, error) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"gopkg.in/yaml.v3"
 )
@@ -34,12 +35,16 @@ func New() *Plugin {
 	return &Plugin{Transformers: make([]Transformer, 0)}
 }
 
-func (tp *Plugin) GetInputSchema() ([]byte, error) {
+func (*Plugin) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
+
 func (tp *Plugin) Config(config []byte) error {
-	decodedConfig := []map[string]yaml.Node{}
-	yaml.Unmarshal(config, &decodedConfig)
+	decodedConfig := []map[string]*yaml.Node{}
+	err := yaml.Unmarshal(config, &decodedConfig)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal config: %w", err)
+	}
 	if tp.Transformers == nil {
 		tp.Transformers = make([]Transformer, 0, len(decodedConfig))
 	} else {
@@ -60,7 +65,7 @@ func (tp *Plugin) Config(config []byte) error {
 	return nil
 }
 
-func (tp *Plugin) Work(ctx context.Context, input []byte, yield func(elem []byte) error) error {
+func (tp *Plugin) Work(_ context.Context, input []byte, yield func(elem []byte) error) error {
 	deepCopy := func(input [][]byte) [][]byte {
 		copyInput := make([][]byte, len(input))
 		for i, in := range input {
@@ -70,7 +75,7 @@ func (tp *Plugin) Work(ctx context.Context, input []byte, yield func(elem []byte
 		return copyInput
 	}
 
-	var nextInput [][]byte = [][]byte{input}
+	nextInput := [][]byte{input}
 
 	for _, t := range tp.Transformers {
 		currentInput := deepCopy(nextInput)
@@ -84,7 +89,11 @@ func (tp *Plugin) Work(ctx context.Context, input []byte, yield func(elem []byte
 		}
 	}
 	for _, ni := range nextInput {
-		yield(ni)
+		err := yield(ni)
+		if err != nil {
+			slog.Error("Error yielding", "err", err)
+			return err
+		}
 	}
 	return nil
 }

@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	ErrJsonSchemaConvertion error = errors.New("failed to convert to json format")
-	ErrJsonConvertion       error = errors.New("failed to convert to/from json")
+	ErrJSONSchemaConvertion error = errors.New("failed to convert to json format")
+	ErrJSONConvertion       error = errors.New("failed to convert to/from json")
 )
 
 // This is the implementation of plugin.GRPCPlugin so we can serve/consume this.
@@ -24,7 +24,7 @@ type IOWorkerGRPCPlugin struct {
 	// that are written in Go.
 }
 
-func (p IOWorkerGRPCPlugin) GRPCServer(broker *goplugin.GRPCBroker, s *grpc.Server) error {
+func (p IOWorkerGRPCPlugin) GRPCServer(_ *goplugin.GRPCBroker, s *grpc.Server) error {
 	RegisterIOWorkerPluginsServer(s, &GRPCServer{
 		Impl: p.Impl,
 		Name: p.Name,
@@ -32,6 +32,6 @@ func (p IOWorkerGRPCPlugin) GRPCServer(broker *goplugin.GRPCBroker, s *grpc.Serv
 	return nil
 }
 
-func (p IOWorkerGRPCPlugin) GRPCClient(ctx context.Context, broker *goplugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
+func (p IOWorkerGRPCPlugin) GRPCClient(_ context.Context, _ *goplugin.GRPCBroker, c *grpc.ClientConn) (any, error) {
 	return NewGRPCClient(NewIOWorkerPluginsClient(c), p.Name), nil
 }

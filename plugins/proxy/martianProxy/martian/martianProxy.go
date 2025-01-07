@@ -45,40 +45,57 @@ import (
 
 const (
 	REQ  string = "request"
-	RESP        = "response"
+	RESP string = "response"
 )
 
-var (
-	ErrNoCert = errors.New("No certificate provided, tls proxy won't working")
-)
+var ErrNoCert = errors.New("no certificate provided, tls proxy won't working")
 
-func WithMitmCertsFile(validity time.Duration, name string, organization string, verify bool, cert string, key string, cors bool) ProxyOption {
+func WithMitmCertsFile(
+	validity time.Duration,
+	name string,
+	organization string,
+	ver bool,
+	cert string,
+	key string,
+	withCors bool,
+) ProxyOption {
 	return func(p *Proxy) error {
 		tlsc, err := tls.LoadX509KeyPair(cert, key)
 		if errors.Is(err, os.ErrNotExist) {
 			log.Errorf("cert or key  path -> %v, generate certificate", err)
-			return WithMitmCertsGenerated(validity, name, organization, verify, cors)(p)
+			return WithMitmCertsGenerated(validity, name, organization, ver, withCors)(p)
 		}
 		priv := tlsc.PrivateKey
 		x509c, err := x509.ParseCertificate(tlsc.Certificate[0])
 		if err != nil {
 			return fmt.Errorf("parsing cert failed: %w", err)
 		}
-		return WithMitm(validity, organization, verify, x509c, priv, cors)(p)
-
+		return WithMitm(validity, organization, ver, x509c, priv, withCors)(p)
 	}
 }
 
-func WithMitmCertsGenerated(validity time.Duration, name string, organization string, verify bool, cors bool) ProxyOption {
+func WithMitmCertsGenerated(validity time.Duration,
+	name string,
+	organization string,
+	ver bool,
+	withCors bool,
+) ProxyOption {
 	return func(p *Proxy) error {
 		ca, privKey, err := mitm.NewAuthority(name, organization, validity)
 		if err != nil {
 			return fmt.Errorf("failed to generated cert key pair")
 		}
-		return WithMitm(validity, organization, verify, ca, privKey, cors)(p)
+		return WithMitm(validity, organization, ver, ca, privKey, withCors)(p)
 	}
 }
-func WithMitm(validity time.Duration, organization string, verify bool, x509c *x509.Certificate, privKey interface{}, cors bool) ProxyOption {
+
+func WithMitm(validity time.Duration,
+	organization string,
+	ver bool,
+	x509c *x509.Certificate,
+	privKey any,
+	withCors bool,
+) ProxyOption {
 	return func(p *Proxy) error {
 		if x509c != nil && privKey != nil {
 			mc, err := mitm.NewConfig(x509c, privKey)
@@ -88,30 +105,23 @@ func WithMitm(validity time.Duration, organization string, verify bool, x509c *x
 			}
 			mc.SetValidity(validity)
 			mc.SetOrganization(organization)
-			mc.SkipTLSVerify(verify)
+			mc.SkipTLSVerify(ver)
 			p.martian.SetMITM(mc)
 			p.mc = mc
 			ah := martianhttp.NewAuthorityHandler(x509c)
-			p.configure("/authority.cer", ah, cors)
+			p.configure("/authority.cer", ah, withCors)
 			return nil
-		} else {
-			return errors.New("missing certificate")
 		}
+		return errors.New("missing certificate")
 	}
 }
 
-func WithEnpointConfiguration(corsEnabled bool, transferToMQTTSettings bool) ProxyOption {
+func WithEnpointConfiguration(corsEnabled bool) ProxyOption {
 	return func(p *Proxy) error {
-
 		m := martianhttp.NewModifier()
 		p.stack.AddRequestModifier(m)
 		p.stack.AddResponseModifier(m)
 		var mHandler http.Handler = m
-		// if cl, err := logger.NewClientInstance(mqttlib.MQTTConfig{}); err == nil && transferToMQTTSettings {
-		// 	mHandler = logger.NewMQTTWriter(cl, "/settings").Middleware(m, "POST")
-		// } else {
-		// 	log.Errorf("initializing middleware for POST configure settings : %v\n", err)
-		// }
 		p.configure("/configure", mHandler, corsEnabled)
 		// Verify assertions expose an endpoint to verify the `martianhttp.Modifier` set previously
 		vh := verify.NewHandler()
@@ -122,17 +132,11 @@ func WithEnpointConfiguration(corsEnabled bool, transferToMQTTSettings bool) Pro
 		// Reset verifications.
 		rh := verify.NewResetHandler()
 		var rhHandler http.Handler = rh
-		// if cl, err := logger.NewClientInstance(mqttlib.MQTTConfig{}); err == nil && transferToMQTTSettings {
-		// 	rhHandler = logger.NewMQTTWriter(cl, "/settings").Middleware(m, "GET")
-		// } else {
-		// 	log.Errorf("Error initializing middleware for GET reset settings : %v\n", err)
-		// }
 		rh.SetRequestVerifier(m)
 		rh.SetResponseVerifier(m)
 		p.configure("/configure/reset", rhHandler, corsEnabled)
 		return nil
 	}
-
 }
 
 func WithStdLog() ProxyOption {
@@ -183,7 +187,10 @@ func WithModifiers(mod any) ProxyOption {
 func WithLogInMem(corsEnabled bool) ProxyOption {
 	return func(p *Proxy) error {
 		hl := har.NewLogger()
-		WithModifiers(hl)(p)
+		err := WithModifiers(hl)(p)
+		if err != nil {
+			return fmt.Errorf("failed to configure WithLogInMem logger: %w", err)
+		}
 		p.configure("/logs", har.NewExportHandler(hl), corsEnabled)
 		p.configure("/logs/reset", har.NewResetHandler(hl), corsEnabled)
 		return nil
@@ -194,39 +201,32 @@ func WithHarWriterLog(writer io.Writer) ProxyOption {
 	return WithModifiers(modifiers.NewLogger(writer))
 }
 
-func WithHierarchicalModifierEnabled(header string) ProxyOption {
-	return func(p *Proxy) error {
-		return nil
-	}
-}
-
-//p.logsInMem(stack)
-// p.logWs()
-
 func WithLogLevel(level int) ProxyOption {
-	return func(p *Proxy) error {
+	return func(_ *Proxy) error {
 		log.SetLevel(level)
 		return nil
 	}
 }
 
 func WitDefaultWriter(w io.Writer) ProxyOption {
-	return func(configure *Proxy) error {
+	return func(_ *Proxy) error {
 		modifiers.DefaultWriter = w
 		return nil
 	}
 }
 
-type ProxyOption = helper.OptionError[Proxy]
-type Proxy struct {
-	martian    *martian.Proxy
-	stack      *fifo.Group
-	mux        *http.ServeMux
-	mc         *mitm.Config
-	address    string
-	apiAddress string
-	tlsAddress string
-}
+type (
+	ProxyOption = helper.OptionError[Proxy]
+	Proxy       struct {
+		martian    *martian.Proxy
+		stack      *fifo.Group
+		mux        *http.ServeMux
+		mc         *mitm.Config
+		address    string
+		apiAddress string
+		tlsAddress string
+	}
+)
 
 func NewProxy(address, tlsAddress, apiAddress string, opt ...ProxyOption) (*Proxy, error) {
 	p := &Proxy{
@@ -237,11 +237,9 @@ func NewProxy(address, tlsAddress, apiAddress string, opt ...ProxyOption) (*Prox
 		tlsAddress: tlsAddress,
 	}
 
-	// p.stack, p.fg = httpspec.NewStack("loki-proxy")
 	hbhm := header.NewHopByHopModifier()
 	p.stack = fifo.NewGroup()
 	p.stack.AddRequestModifier(hbhm)
-	// topGroup.AddResponseModifier(hbhm)
 	p.martian.SetRequestModifier(p.stack)
 	p.martian.SetResponseModifier(p.stack)
 
@@ -271,35 +269,52 @@ func (p *Proxy) configure(pattern string, handler http.Handler, corsEnabled bool
 	p.mux.Handle(pattern, handler)
 }
 
-func (p *Proxy) Run(ctx context.Context, enableApi bool) error {
-
+func (p *Proxy) Run(ctx context.Context, enableAPI bool) error {
 	l, err := net.Listen("tcp", p.address)
 	if err != nil {
 		log.Errorf("%v", err)
 		return err
 	}
-	go p.martian.Serve(l)
+	go func(l net.Listener) {
+		err := p.martian.Serve(l)
+		if err != nil {
+			slog.Error("serve martian proxy failed", "error", err)
+		}
+	}(l)
 	if p.mc != nil {
 		tl, err := net.Listen("tcp", p.tlsAddress)
 		if err != nil {
 			return err
 		}
 
-		go p.martian.Serve(tls.NewListener(tl, p.mc.TLS()))
+		go func(tl net.Listener) {
+			err := p.martian.Serve(tls.NewListener(tl, p.mc.TLS()))
+			if err != nil {
+				slog.Error("serve tls martian proxy failed", "error", err)
+			}
+		}(tl)
 	} // Start TLS listener for transparent MITM.
 
-	if enableApi {
+	if enableAPI {
 		lAPI, err := net.Listen("tcp", p.apiAddress)
 		if err != nil {
 			log.Errorf("%v", err)
 			return err
 		}
-		go http.Serve(lAPI, p.mux)
 
+		go func(lAPI net.Listener) {
+			server := &http.Server{
+				ReadHeaderTimeout: 3 * time.Second,
+				Handler:           p.mux,
+			}
+			err := server.Serve(lAPI)
+			if err != nil {
+				slog.Error("serve  martian API failed", "error", err)
+			}
+		}(lAPI)
 	}
 	slog.Info("martian: starting proxy", "proxyAddr", l.Addr().String())
 	<-ctx.Done()
 	slog.Info("martian: shutting down")
 	return nil
-
 }

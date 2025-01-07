@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"log/slog"
-
 	"os"
 	"os/signal"
 
@@ -33,15 +32,13 @@ func main() {
 			},
 		},
 		Action: func(c *cli.Context) error {
-			defer func() {
-				grpc.CleanupClients()
-			}()
+			defer grpc.CleanupClients()
+
 			helper.SetLog(slog.LevelDebug, false)
 			if c.IsSet("draw-graph-only") {
 				return DrawGraphOnly(c)
-			} else {
-				return RunTemplate(c)
 			}
+			return RunTemplate(c)
 		},
 	}
 	if err := app.Run(os.Args); err != nil {
@@ -78,7 +75,7 @@ func RunTemplate(c *cli.Context) error {
 			if !ok {
 				return nil
 			}
-			slog.Error("an error occured in a stage", "error", e.Error())
+			slog.Error("an error occurred in a stage", "error", e.Error())
 		case <-sigc:
 			return nil
 		}

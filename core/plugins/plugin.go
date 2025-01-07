@@ -13,17 +13,15 @@ import (
 func LoadPlugin(name string, path string, config any) (pluginapi.IOWorkerPluginable, error) {
 	plugin, err := getPlugin(name, path)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load plugin %s: %v", name, err)
+		return nil, fmt.Errorf("failed to load plugin %s: %w", name, err)
 	}
 	jsonConfig, err := json.Marshal(config)
 	if err != nil {
-
-		return nil, fmt.Errorf("Failed to marshal config for plugin %s: %v", name, err)
+		return nil, fmt.Errorf("failed to marshal config for plugin %s: %w", name, err)
 	}
 	err = plugin.Config(jsonConfig)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to configure plugin %s: %v", name, err)
-
+		return nil, fmt.Errorf("failed to configure plugin %s: %w", name, err)
 	}
 	return plugin, nil
 }
@@ -41,5 +39,4 @@ func getPlugin(name string, path string) (pluginapi.IOWorkerPluginable, error) {
 		}
 		return grpc.NewPlugin(name).Connect()
 	}
-
 }

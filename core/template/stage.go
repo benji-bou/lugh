@@ -6,20 +6,13 @@ import (
 
 	"github.com/benji-bou/lugh/core/graph"
 	"github.com/benji-bou/lugh/core/plugins"
-	"gopkg.in/yaml.v3"
 )
 
-type NamedStage struct {
-	name string
-}
-
 type Stage struct {
-	NamedStage
-	Parents    []string               `yaml:"parents"`
-	PluginPath string                 `yaml:"pluginPath"`
-	Plugin     string                 `yaml:"plugin"`
-	Config     any                    `yaml:"config"`
-	Pipe       []map[string]yaml.Node `yaml:"pipe"`
+	Parents    []string `yaml:"parents"`
+	PluginPath string   `yaml:"pluginPath"`
+	Plugin     string   `yaml:"plugin"`
+	Config     any      `yaml:"config"`
 }
 
 func (st Stage) LoadPlugin(name string) graph.IOWorkerVertex[[]byte] {

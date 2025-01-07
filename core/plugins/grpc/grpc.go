@@ -19,10 +19,9 @@ func handleGRPCStreamError(err error, name string) error {
 		} else if e, ok := status.FromError(err); ok && e.Code() == codes.Canceled {
 			slog.Debug("stream canceled", "error", err, "name", name)
 			return nil
-		} else {
-			slog.Error("stream error", "error", err, "name", name)
-			return err
 		}
+		slog.Error("stream error", "error", err, "name", name)
+		return err
 	}
 	return nil
 }

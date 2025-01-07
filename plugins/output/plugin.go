@@ -18,18 +18,18 @@ func NewOutput(opt ...OutputOption) Output {
 	return helper.Configure(Output{}, opt...)
 }
 
-func (mp Output) GetInputSchema() ([]byte, error) {
+func (Output) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
-func (mp Output) Config([]byte) error {
+func (Output) Config([]byte) error {
 	return nil
 }
 
-func (mp Output) Consume(context context.Context, input <-chan []byte) error {
+func (Output) Consume(ctx context.Context, input <-chan []byte) error {
 	for {
 		select {
-		case <-context.Done():
+		case <-ctx.Done():
 			return nil
 		case i, ok := <-input:
 			if !ok {

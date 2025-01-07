@@ -10,7 +10,6 @@ type Ctrler interface {
 }
 
 func Listen(ctrl ...Ctrler) error {
-
 	optSrv := make([]helper.SrvOption, 0)
 	for _, c := range ctrl {
 		optSrv = append(optSrv, c.Route()...)
@@ -20,5 +19,4 @@ func Listen(ctrl ...Ctrler) error {
 		append([]helper.SrvOption{
 			helper.WithMiddleware(middleware.CORS()),
 		}, optSrv...)...)
-
 }

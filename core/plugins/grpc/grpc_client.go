@@ -31,6 +31,7 @@ func (m *GRPCClient) SetInput(input <-chan []byte) {
 	slog.Debug("setting input", "name", m.Name, "object", "GRPCClient", "function", "SetInput")
 	m.inputC = input
 }
+
 func (m *GRPCClient) Output() <-chan []byte {
 	return m.outputC
 }
@@ -47,7 +48,6 @@ func (m *GRPCClient) Config(config []byte) error {
 }
 
 func (m *GRPCClient) Run(ctx graph.SyncContext) <-chan error {
-	// runCtx, cancel := context.WithCancel(ctx)
 	errC := make(chan error)
 	wg := &sync.WaitGroup{}
 	wgInit := &sync.WaitGroup{}
@@ -101,7 +101,6 @@ func (m *GRPCClient) handleRun(ctx context.Context, errC chan<- error) {
 	}
 	for {
 		req, err := runStream.Recv()
-
 		if err != nil {
 			err = handleGRPCStreamError(err, m.Name)
 			if err != nil {
@@ -132,19 +131,28 @@ func (m *GRPCClient) handleStreamOutput(ctx context.Context) error {
 			return handleGRPCStreamError(err, m.Name)
 		}
 		toForward := runloop.Recv(req)
-		slog.Debug("recv output data from grpc stream", "name", m.Name, "function", "handleStreamOutput", "object", "GRPCClient", "data", string(toForward.Data))
 		if toForward != nil {
+			slog.Debug("recv output data from grpc stream",
+				"name", m.Name,
+				"function", "handleStreamOutput",
+				"object", "GRPCClient",
+				"data", string(toForward.Data),
+			)
 			m.outputC <- toForward.Data
 		}
 	}
 }
 
-func (m *GRPCClient) handleStreamInput(ctx context.Context) error {
+func (m *GRPCClient) handleStreamInput(ctx context.Context) (err error) {
 	slog.Debug("starting to handle stream input", "name", m.Name, "function", "handleStreamInput", "object", "GRPCClient")
 	stream, err := m.client.Input(ctx)
-	defer closeStream(stream, m.Name)
+
+	defer func(stream IOWorkerPlugins_InputClient, name string) {
+		err = closeStream(stream, name)
+	}(stream, m.Name)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve client input stream named %s: %w", m.Name, err)
+		err = fmt.Errorf("failed to retrieve client input stream named %s: %w", m.Name, err)
+		return err
 	}
 	outputDone := false
 	runloop := NewRunLoop()
@@ -157,20 +165,39 @@ func (m *GRPCClient) handleStreamInput(ctx context.Context) error {
 				outputDone = true
 			}
 		case inputStreamData, ok := <-m.inputC:
-			slog.Debug("recv input data", "name", m.Name, "function", "handleStreamInput", "object", "GRPCClient", "data", string(inputStreamData))
-			// `!ok` no more input will be recieved we can safely close the stream and return
+			slog.Debug("recv input data",
+				"name", m.Name,
+				"function", "handleStreamInput",
+				"object", "GRPCClient",
+				"data", string(inputStreamData),
+			)
+			// `!ok` no more input will be received we can safely close the stream and return
 			if !ok {
-				slog.Debug("inputC closed. Closing grpc stream", "name", m.Name, "function", "handleStreamInput", "object", "GRPCClient", "data", string(inputStreamData))
-				return nil
+				slog.Debug("inputC closed. Closing grpc stream",
+					"name", m.Name,
+					"function", "handleStreamInput",
+					"object", "GRPCClient",
+					"data", string(inputStreamData),
+				)
+				return err
 			}
 			if !outputDone {
-				slog.Debug("will send recv data", "name", m.Name, "function", "handleStreamInput", "object", "GRPCClient", "data", string(inputStreamData))
+				slog.Debug("will send recv data",
+					"name", m.Name,
+					"function", "handleStreamInput",
+					"object", "GRPCClient",
+					"data", string(inputStreamData),
+				)
 				err := m.sendNewData(runloop, &DataStream{Data: inputStreamData, ParentSrc: m.Name}, stream)
 				if err != nil {
-					return fmt.Errorf("failed to send data to plugin server: %w", err)
+					err = fmt.Errorf("failed to send data to plugin server: %w", err)
+					return err
 				}
 			} else {
-				slog.Debug("output stream is Done but keep receiving input data. Doing nothing", "name", m.Name, "function", "handleStreamInput", "object", "GRPCClient")
+				slog.Debug("output stream is Done but keep receiving input data. Doing nothing",
+					"name", m.Name,
+					"function", "handleStreamInput",
+					"object", "GRPCClient")
 			}
 		}
 	}
@@ -178,10 +205,20 @@ func (m *GRPCClient) handleStreamInput(ctx context.Context) error {
 
 func (m *GRPCClient) sendNewData(runloop *RunLoop, dataStream *DataStream, stream IOWorkerPlugins_InputClient) error {
 	for _, dataToSend := range runloop.Send(&DataStream{Data: dataStream.Data, ParentSrc: m.Name}) {
-		slog.Debug("will send data chunk", "name", m.Name, "function", "sendNewData", "object", "GRPCClient", "data", string(dataStream.Data))
+		slog.Debug("will send data chunk",
+			"name", m.Name,
+			"function", "sendNewData",
+			"object", "GRPCClient",
+			"data", string(dataStream.Data),
+		)
 		err := stream.Send(dataToSend)
 		if err != nil {
-			slog.Error("stream send error", "function", "Run", "Object", "GRPCClient", "error", err, "name", m.Name)
+			slog.Error("stream send error",
+				"function", "Run",
+				"Object", "GRPCClient",
+				"error", err,
+				"name", m.Name,
+			)
 			return fmt.Errorf("failed to send data to client stream named %s: %w", m.Name, err)
 		}
 	}

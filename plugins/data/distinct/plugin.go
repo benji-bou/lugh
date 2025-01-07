@@ -3,13 +3,13 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"html/template"
 	"log/slog"
 	"net/http"
-	_ "net/http/pprof"
+	"time"
 
 	"github.com/benji-bou/lugh/core/plugins/grpc"
 	"github.com/benji-bou/lugh/core/plugins/pluginapi"
@@ -23,6 +23,7 @@ func MaxBuffSize(buffSize int) MemFilterOption {
 		configure.buffSizeMax = buffSize
 	}
 }
+
 func IllimitedBuffSize() MemFilterOption {
 	return func(configure *MemFilter) {
 		configure.buffSizeMax = -1
@@ -31,22 +32,19 @@ func IllimitedBuffSize() MemFilterOption {
 
 func DefaultBuffSize() MemFilterOption {
 	return IllimitedBuffSize()
-	// return func(configure *MemFilter) {
-	// 	configure.buffSizeMax = 1024
-	// }
 }
 
 type MemFilter struct {
 	buffSizeMax      int
-	inmem            map[[16]byte]struct{}
+	inmem            map[[32]byte]struct{}
 	goTemplateFilter *template.Template
 }
 
 func NewMemFilter(opt ...MemFilterOption) *MemFilter {
-	return helper.ConfigurePtr(&MemFilter{inmem: map[[16]byte]struct{}{}}, append([]MemFilterOption{DefaultBuffSize()}, opt...)...)
+	return helper.ConfigurePtr(&MemFilter{inmem: map[[32]byte]struct{}{}}, append([]MemFilterOption{DefaultBuffSize()}, opt...)...)
 }
 
-func (mp *MemFilter) GetInputSchema() ([]byte, error) {
+func (*MemFilter) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
@@ -66,18 +64,20 @@ func (mp *MemFilter) Config(config []byte) error {
 	return nil
 }
 
-func (mp *MemFilter) Work(context context.Context, input []byte, yield func(elem []byte) error) error {
-
+func (mp *MemFilter) Work(_ context.Context, input []byte, yield func(elem []byte) error) error {
 	slog.Debug("received data", "data", string(input))
 	buff := &bytes.Buffer{}
 	if mp.goTemplateFilter != nil {
-		mp.goTemplateFilter.Execute(buff, input)
+		err := mp.goTemplateFilter.Execute(buff, input)
+		if err != nil {
+			return fmt.Errorf("couldn't execute Distinct go template pattern because %w", err)
+		}
 	}
 	if buff.Len() == 0 {
 		buff.Write(input)
 	}
 
-	hash := md5.Sum(buff.Bytes())
+	hash := sha256.Sum256(buff.Bytes())
 	if _, exists := mp.inmem[hash]; exists {
 		return nil
 	}
@@ -93,7 +93,12 @@ func (mp *MemFilter) Work(context context.Context, input []byte, yield func(elem
 
 func main() {
 	go func() {
-		http.ListenAndServe("localhost:6061", nil)
+		server := &http.Server{
+			Addr:              "localhost:6061",
+			ReadHeaderTimeout: 5 * time.Second,
+		}
+		err := server.ListenAndServe()
+		slog.Error("server failed", "err", err)
 	}()
 	helper.SetLog(slog.LevelError, true)
 	plugin := grpc.NewPlugin("distinct",

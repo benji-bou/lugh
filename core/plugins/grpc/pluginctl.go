@@ -20,28 +20,31 @@ var DefaultHandshake = plugin.HandshakeConfig{
 	MagicCookieValue: "hello",
 }
 
-type PluginOption = helper.Option[Plugin]
-type Plugin struct {
-	path      string
-	name      string
-	cmd       *exec.Cmd
-	plugin    plugin.Plugin
-	handshake plugin.HandshakeConfig
-	client    *plugin.Client
-}
+type (
+	PluginOption = helper.Option[Plugin]
+	Plugin       struct {
+		path      string
+		name      string
+		cmd       *exec.Cmd
+		plugin    plugin.Plugin
+		handshake plugin.HandshakeConfig
+		client    *plugin.Client
+	}
+)
 
 func NewPlugin(name string, opt ...PluginOption) *Plugin {
-	defaultOption := []PluginOption{
+	options := make([]PluginOption, 0, len(opt)+3)
+	options = append(options,
 		withDefaultPath(),
 		WithHandshakeConfig(DefaultHandshake),
 		WithGRPCPlugin(),
-	}
+	)
 	mandatoryOption := []PluginOption{
 		withCmd(false),
 	}
 
-	allOptionChain := append(defaultOption, append(opt, mandatoryOption...)...)
-	pl := helper.ConfigurePtr(&Plugin{name: name}, allOptionChain...)
+	options = append(options, append(opt, mandatoryOption...)...)
+	pl := helper.ConfigurePtr(&Plugin{name: name}, options...)
 	return pl
 }
 
@@ -60,24 +63,22 @@ func withCmd(force bool) PluginOption {
 }
 
 func withDefaultPath() PluginOption {
-
 	p, err := os.UserHomeDir()
 	if err != nil {
 		slog.Info("unable to find default user Home path for plugins", "error", err)
 		p, err = os.UserConfigDir()
 		if err != nil {
-			slog.Warn("unable to find deafult path for plugins")
+			slog.Warn("unable to find default path for plugins")
 			return nil
 		}
 	}
 	realPath := filepath.Join(p, ".lugh", "plugins")
 	return WithPath(realPath)
-
 }
 
 func WithPath(path string) PluginOption {
 	return func(p *Plugin) {
-		err := os.MkdirAll(path, 0744)
+		err := os.MkdirAll(path, 0o750) //nolint:mnd // this is a basic hard coded directory permission
 		if err != nil {
 			slog.Error("unable to create default config path", "path", path, "error", err)
 			return
@@ -88,7 +89,7 @@ func WithPath(path string) PluginOption {
 
 func withDefaultPluginProcess() PluginOption {
 	return func(p *Plugin) {
-		p.cmd = exec.Command("sh", "-c", filepath.Join(p.path, p.name))
+		p.cmd = exec.Command("sh", "-c", filepath.Join(p.path, p.name)) // #nosec G204
 	}
 }
 
@@ -104,9 +105,9 @@ func WithCmdConfig(cmd *exec.Cmd) PluginOption {
 	}
 }
 
-func WithPluginImplementation(plugin pluginapi.IOWorkerPluginable) PluginOption {
+func WithPluginImplementation(plg pluginapi.IOWorkerPluginable) PluginOption {
 	return func(p *Plugin) {
-		p.plugin = IOWorkerGRPCPlugin{Impl: plugin, Name: p.name}
+		p.plugin = IOWorkerGRPCPlugin{Impl: plg, Name: p.name}
 	}
 }
 
@@ -116,7 +117,7 @@ func WithGRPCPlugin() PluginOption {
 	}
 }
 
-func (p Plugin) Serve() {
+func (p *Plugin) Serve() {
 	log := hclog.Default().Named(p.name)
 	log.SetLevel(hclog.Debug)
 

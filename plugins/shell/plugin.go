@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -25,7 +26,7 @@ func NewShell(opt ...ShellOption) *Shell {
 	return helper.ConfigurePtr(&Shell{}, opt...)
 }
 
-func (mp Shell) GetInputSchema() ([]byte, error) {
+func (*Shell) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
@@ -43,49 +44,44 @@ func (mp *Shell) Config(conf []byte) error {
 	return nil
 }
 
-func (mp Shell) Run(context context.Context, input <-chan []byte, yield func(elem []byte) error) error {
-
-	cmd := exec.Command(mp.cmd, mp.args...)
-	inputCmd, err := cmd.StdinPipe()
-	if err != nil {
-		return fmt.Errorf("shell stdinpipe failed %w", err)
-	}
-	defer inputCmd.Close()
-	outputCmd, err := cmd.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("shell stdoutpipe failed %w", err)
-	}
-	defer outputCmd.Close()
-
-	err = cmd.Start()
-	defer cmd.Wait()
-	if err != nil {
-		return fmt.Errorf("shell cmd start failed %w", err)
-	}
-	errC := make(chan error)
-
-	go func(outputCmd io.Reader) {
-		defer close(errC)
-		scanner := bufio.NewScanner(outputCmd)
-		for scanner.Scan() {
-			line := scanner.Bytes()
-			if len(line) > 0 {
-				slog.Debug("shell output reader", "value", line)
-				yield(line)
-			}
-		}
-		if err := scanner.Err(); err != nil {
-			errC <- err
+func (*Shell) handleCmdOutput(outputCmd io.ReadCloser, yield func(elem []byte) error) (err error) {
+	defer func(outputCmd io.ReadCloser) {
+		err = outputCmd.Close()
+		if err != nil {
+			err = fmt.Errorf("close stdoutput failed %w", err)
 		}
 	}(outputCmd)
+	scanner := bufio.NewScanner(outputCmd)
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) > 0 {
+			slog.Debug("shell output reader", "value", line)
+			err := yield(line)
+			if err != nil {
+				slog.Error("yield output failed", "error", err)
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		if !errors.Is(err, io.EOF) {
+			return fmt.Errorf("scanner failed %w", err)
+		}
+	}
+	return nil
+}
 
+func (*Shell) handleCmdInput(ctx context.Context, inputCmd io.WriteCloser, inputC <-chan []byte) (err error) {
+	defer func(inputCmd io.WriteCloser) {
+		err = inputCmd.Close()
+		if err != nil {
+			err = fmt.Errorf("shell stdinpipe close failed %w", err)
+		}
+	}(inputCmd)
 	for {
 		select {
-		case <-context.Done():
+		case <-ctx.Done():
 			return nil
-		case err := <-errC:
-			return err
-		case i, ok := <-input:
+		case i, ok := <-inputC:
 			if !ok {
 				return nil
 			}
@@ -95,7 +91,37 @@ func (mp Shell) Run(context context.Context, input <-chan []byte, yield func(ele
 			}
 		}
 	}
+}
 
+func (mp *Shell) Run(ctx context.Context, input <-chan []byte, yield func(elem []byte) error) (err error) {
+	cmd := exec.Command(mp.cmd, mp.args...) // #nosec G204
+	inputCmd, err := cmd.StdinPipe()
+	if err != nil {
+		return fmt.Errorf("shell stdinpipe failed %w", err)
+	}
+
+	outputCmd, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("shell stdoutpipe failed %w", err)
+	}
+	err = cmd.Start()
+	if err != nil {
+		return fmt.Errorf("shell cmd start failed %w", err)
+	}
+	defer func(cmd *exec.Cmd) {
+		err = cmd.Wait()
+		if err != nil {
+			err = fmt.Errorf("wait for cmd failed %w", err)
+		}
+	}(cmd)
+	go func(outputCmd io.ReadCloser, yield func(elem []byte) error) {
+		err := mp.handleCmdOutput(outputCmd, yield)
+		if err != nil {
+			slog.Error("Run output error", "error", err)
+		}
+	}(outputCmd, yield)
+
+	return mp.handleCmdInput(ctx, inputCmd, input)
 }
 
 func main() {

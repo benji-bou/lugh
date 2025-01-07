@@ -1,3 +1,4 @@
+//nolint:gochecknoinits // martian explicitly document that new modifier should be rehgistered in init function
 package modifiers
 
 import (
@@ -19,7 +20,7 @@ import (
 var DefaultWriter io.Writer
 
 func init() {
-	parse.Register("output", func(b []byte) (*parse.Result, error) {
+	parse.Register("output", func(_ []byte) (*parse.Result, error) {
 		return parse.NewResult(NewLogger(nil), []parse.ModifierType{"request", "response"})
 	})
 }
@@ -97,7 +98,6 @@ func (l *WritterLogger) writeEntries(entry *har.Entry) error {
 	if err != nil {
 		return err
 	}
-	// slog.Debug("write new entry", "entry", entry, "object", "WritterLogger", "plugin", "MartianProxy")
 	_, err = l.w.Write(rawHar)
 	if err != nil {
 		slog.Error("write entry", "error", err, "object", "WritterLogger", "plugin", "MartianProxy")

@@ -86,7 +86,7 @@ package ctrl
 // 				c.JSON(500, "toto")
 // 				return nil
 // 			}
-// 			slog.Error("an error occured in a stage", "error", e)
+// 			slog.Error("an error occurred in a stage", "error", e)
 // 			c.JSONBlob(500, []byte(fmt.Sprintf(`{"error": %s}`, e.Error())))
 // 		}
 // 	}

@@ -13,6 +13,10 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
+const (
+	shutdownTimeout time.Duration = 10 * time.Second
+)
+
 type RouteConfigurable interface {
 	Add(method, path string, handler echo.HandlerFunc, middleware ...echo.MiddlewareFunc) *echo.Route
 	Any(path string, handler echo.HandlerFunc, middleware ...echo.MiddlewareFunc) []*echo.Route
@@ -43,7 +47,7 @@ type Srv struct {
 }
 
 func shutdown(e *echo.Echo) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	if err := e.Shutdown(ctx); err != nil {
 		return err
@@ -51,7 +55,7 @@ func shutdown(e *echo.Echo) error {
 	return nil
 }
 
-func RunServer(opt ...SrvOption) error {
+func RunServer(opt ...SrvOption) (err error) {
 	e := echo.New()
 	e.HideBanner = true
 	e.Pre(middleware.RemoveTrailingSlash())
@@ -61,19 +65,21 @@ func RunServer(opt ...SrvOption) error {
 	for _, o := range opt {
 		o(srv)
 	}
-	defer shutdown(e)
+	defer func(e *echo.Echo) {
+		err = shutdown(e)
+	}(e)
 	errCServer := make(chan error)
 	go func() {
 		defer close(errCServer)
-		err := e.Start(srv.Addr)
-		if err != nil {
-			errCServer <- err
+		errStart := e.Start(srv.Addr)
+		if errStart != nil {
+			errCServer <- errStart
 		}
 	}()
 	select {
 	case <-srv.ctx.Done():
 		return nil
-	case err := <-errCServer:
+	case err = <-errCServer:
 		return err
 	}
 }
@@ -161,7 +167,7 @@ func WithAddr(addr string) SrvOption {
 }
 
 func WithAddrProd() SrvOption {
-	return func(e RouteConfigurable) {
+	return func(_ RouteConfigurable) {
 		WithAddr(os.Getenv("ADDR"))
 	}
 }

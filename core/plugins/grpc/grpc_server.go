@@ -20,7 +20,8 @@ func (m *GRPCServer) GetInputSchema(context.Context, *Empty) (*InputSchema, erro
 	is := &InputSchema{Config: rawSchema}
 	return is, err
 }
-func (m *GRPCServer) Config(ctx context.Context, config *RunInputConfig) (*Empty, error) {
+
+func (m *GRPCServer) Config(_ context.Context, config *RunInputConfig) (*Empty, error) {
 	return &Empty{}, m.Impl.Config(config.Config)
 }
 
@@ -43,15 +44,30 @@ func (m *GRPCServer) Input(stream IOWorkerPlugins_InputServer) error {
 	}
 }
 
-func (m *GRPCServer) Output(empty *Empty, stream IOWorkerPlugins_OutputServer) error {
+func (m *GRPCServer) Output(_ *Empty, stream IOWorkerPlugins_OutputServer) error {
 	runLoop := NewRunLoop()
 	for dataOutput := range m.Impl.Output() {
-		slog.Debug("receive data from outputC", "function", "Output", "Object", "GRPCServer", "data", dataOutput, "name", m.Name)
+		slog.Debug("receive data from outputC",
+			"function", "Output",
+			"Object", "GRPCServer",
+			"data", dataOutput,
+			"name", m.Name,
+		)
 		for _, d := range runLoop.Send(&DataStream{Data: dataOutput, ParentSrc: m.Name}) {
-			slog.Debug("sending data over stream", "function", "Output", "Object", "GRPCServer", "data", dataOutput, "name", m.Name)
+			slog.Debug("sending data over stream",
+				"function", "Output",
+				"Object", "GRPCServer",
+				"data", dataOutput,
+				"name", m.Name,
+			)
 			err := stream.Send(d)
 			if err != nil {
-				slog.Error("sending data over stream failed", "function", "Output", "Object", "GRPCServer", "error", err, "name", m.Name)
+				slog.Error("sending data over stream failed",
+					"function", "Output",
+					"Object", "GRPCServer",
+					"error", err,
+					"name", m.Name,
+				)
 				return err
 			}
 		}
@@ -67,13 +83,17 @@ func (m *GRPCServer) Run(_ *Empty, s IOWorkerPlugins_RunServer) error {
 	slog.Info("start listening for errors", "name", m.Name)
 	for err := range errC {
 		slog.Info("error received", "error", err, "name", m.Name)
-		s.Send(&Error{Message: err.Error()})
-		slog.Info("error sent", "error", err, "name", m.Name)
+		err = s.Send(&Error{Message: err.Error()})
+		if err != nil {
+			slog.Warn("error sending error", "error", err, "name", m.Name)
+		} else {
+			slog.Info("error sent", "error", err, "name", m.Name)
+		}
 	}
 	slog.Info("end of error listening", "name", m.Name)
 	return nil
 }
 
-func (m *GRPCServer) mustEmbedUnimplementedIOWorkerPluginsServer() {
+func (*GRPCServer) mustEmbedUnimplementedIOWorkerPluginsServer() {
 	slog.Info("inside GRPCServer mustEmbedUnimplementedIOWorkerPluginsServer")
 }

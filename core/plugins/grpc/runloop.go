@@ -13,7 +13,6 @@ type RunLoop struct {
 }
 
 func NewRunLoop() *RunLoop {
-
 	return &RunLoop{buffer: make(map[string][]*DataStream, 0), lim: 1024 * 1024 * 3}
 }
 
@@ -53,7 +52,7 @@ func (rl *RunLoop) Send(stream *DataStream) []*DataStream {
 		res = append(res, &DataStream{Data: chunk, Id: stream.Id, IsComplete: false, TotalLen: int64(totalLen)})
 	}
 	if len(buf) > 0 {
-		res = append(res, &DataStream{Data: buf[:], Id: stream.Id, IsComplete: true, TotalLen: int64(totalLen)})
+		res = append(res, &DataStream{Data: buf, Id: stream.Id, IsComplete: true, TotalLen: int64(totalLen)})
 	}
 	return res
 }

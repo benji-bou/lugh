@@ -26,7 +26,8 @@ type RawFile struct {
 func NewRawFile(opt ...RawFileOption) *RawFile {
 	return helper.ConfigurePtr(&RawFile{}, opt...)
 }
-func (mp RawFile) GetInputSchema() ([]byte, error) {
+
+func (RawFile) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
@@ -39,7 +40,8 @@ func (mp *RawFile) Config(config []byte) error {
 	mp.config = configRawFile
 	return nil
 }
-func (mp RawFile) Consume(context context.Context, input <-chan []byte) error {
+
+func (mp RawFile) Consume(_ context.Context, input <-chan []byte) error {
 	basePath, err := os.UserHomeDir()
 	if err != nil {
 		basePath = "./"
@@ -48,7 +50,7 @@ func (mp RawFile) Consume(context context.Context, input <-chan []byte) error {
 	if mp.config.Filepath != "" {
 		defaultFilePath = mp.config.Filepath
 	}
-	f, err := os.OpenFile(defaultFilePath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
+	f, err := os.OpenFile(defaultFilePath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o600) //nolint:mnd // basic file permision
 	if err != nil {
 		return fmt.Errorf("NewRawFile open file for  plugin failed, %w", err)
 	}

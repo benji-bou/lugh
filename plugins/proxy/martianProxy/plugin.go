@@ -40,12 +40,12 @@ func NewMartianPlugin() *MartianPlugin {
 	r := jsonschema.Reflector{}
 	schema, err := r.Reflect(MartianInputConfig{})
 	if err != nil {
-		slog.Error(grpc.ErrJsonSchemaConvertion.Error(), "plugin", "MartianHttpProxy", "type", "MartianInputConfig", "errors", err)
+		slog.Error(grpc.ErrJSONSchemaConvertion.Error(), "plugin", "MartianHttpProxy", "type", "MartianInputConfig", "errors", err)
 		os.Exit(-1)
 	}
 	j, err := json.Marshal(schema)
 	if err != nil {
-		slog.Error(grpc.ErrJsonConvertion.Error(), "plugin", "MartianHttpProxy", "type", "MartianInputConfig", "errors", err)
+		slog.Error(grpc.ErrJSONConvertion.Error(), "plugin", "MartianHttpProxy", "type", "MartianInputConfig", "errors", err)
 		os.Exit(-1)
 	}
 	return &MartianPlugin{inputFormat: j}
@@ -72,10 +72,7 @@ func (mp *MartianPlugin) Produce(ctx context.Context, yield func(elem []byte) er
 
 	slog.Debug("started routine", "function", "Run", "plugin", "MartianPlugin")
 
-	opt, err := mp.getOptions(YieldWriter(yield))
-	if err != nil {
-		return fmt.Errorf("martian initalization failed %w", err)
-	}
+	opt := mp.getOptions(YieldWriter(yield))
 	px, err := martian.NewProxy(":8080", ":4443", ":4242", opt...)
 	if err != nil {
 		return fmt.Errorf("martian creating proxy failed %w", err)
@@ -91,7 +88,6 @@ func (mp *MartianPlugin) Produce(ctx context.Context, yield func(elem []byte) er
 }
 
 func main() {
-
 	helper.SetLog(slog.LevelDebug, true)
 	plugin := grpc.NewPlugin("martianProxy",
 		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromProducer(NewMartianPlugin())),
@@ -99,8 +95,8 @@ func main() {
 	plugin.Serve()
 }
 
-func (mp MartianPlugin) getOptions(wC io.Writer) ([]helper.OptionError[martian.Proxy], error) {
-
+//nolint:mnd // this ius ok in that context
+func (mp MartianPlugin) getOptions(wC io.Writer) []helper.OptionError[martian.Proxy] {
 	opt := []helper.OptionError[martian.Proxy]{
 		martian.WitDefaultWriter(wC),
 		martian.WithMitmCertsFile(time.Hour*24*365, "lugh", "lugh", false,
@@ -118,5 +114,5 @@ func (mp MartianPlugin) getOptions(wC io.Writer) ([]helper.OptionError[martian.P
 		)
 	}
 
-	return opt, nil
+	return opt
 }

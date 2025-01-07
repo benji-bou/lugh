@@ -53,6 +53,7 @@ func NewDefaultIOWorkerVertex[K any](name string, parents []string, decorated IO
 func (dwv *DefaultIOWorkerVertex[K]) GetName() string {
 	return dwv.name
 }
+
 func (dwv *DefaultIOWorkerVertex[K]) GetParents() []string {
 	return dwv.parents
 }
@@ -63,7 +64,6 @@ type ioWorker[K any] struct {
 }
 
 func (v *ioWorker[K]) SetInput(input <-chan K) {
-
 	v.inputC = input
 }
 
@@ -108,7 +108,6 @@ func (s *syncWorker[K]) Run(ctx SyncContext) <-chan error {
 			}
 		}
 	}, diwo.WithName(reflect.TypeOf(s.worker).String()))
-
 }
 
 type producerWorker[K any] struct {
@@ -138,7 +137,6 @@ func (p *producerWorker[K]) Run(ctx SyncContext) <-chan error {
 		if err != nil {
 			c <- err
 		}
-
 	})
 }
 
@@ -164,7 +162,6 @@ func (c *consumerWorker[K]) Run(ctx SyncContext) <-chan error {
 		if err != nil {
 			eC <- err
 		}
-
 	})
 }
 
@@ -191,7 +188,6 @@ func (v *runWorker[K]) Run(ctx SyncContext) <-chan error {
 			v.outputC <- elem
 			return nil
 		})
-
 		if err != nil {
 			c <- err
 		}
