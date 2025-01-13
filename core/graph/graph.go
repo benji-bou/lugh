@@ -16,15 +16,20 @@ import (
 	"github.com/dominikbraun/graph/draw"
 )
 
+var ErrIsRunning = errors.New("operation not permited while graph is running")
+
 type NeighbourSearchFunc func() (map[string]map[string]graph.Edge[string], error)
 
 type IOGraph[K any] struct {
 	graph.Graph[string, IOWorkerVertex[K]]
+	isRunning     bool
+	innerCancelFn context.CancelFunc
+	hasInputSet   bool
 }
 
 func WithIOWorkerVertexIterator[K any](it iter.Seq[IOWorkerVertex[K]]) IOGraphOption[K] {
 	return func(configure *IOGraph[K]) {
-		err := configure.AddIOWorkerVertex(it)
+		err := configure.AddIOWorkerVertices(it)
 		if err != nil {
 			slog.Warn("failed to add IOWorkerVertex iterator", "error", err)
 		}
@@ -78,16 +83,16 @@ func (sg *IOGraph[K]) NeighborVertices(orientedNeighborSearch NeighbourSearchFun
 	return res, nil
 }
 
-func (sg *IOGraph[K]) IterChildlessVertex() iter.Seq[IOWorker[K]] {
+func (sg *IOGraph[K]) IterChildlessVertex() iter.Seq[IOWorkerVertex[K]] {
 	return sg.iterOrientedNeighborlessVertex(sg.AdjacencyMap)
 }
 
-func (sg *IOGraph[K]) IterParentlessVertex() iter.Seq[IOWorker[K]] {
+func (sg *IOGraph[K]) IterParentlessVertex() iter.Seq[IOWorkerVertex[K]] {
 	return sg.iterOrientedNeighborlessVertex(sg.PredecessorMap)
 }
 
-func (sg *IOGraph[K]) iterOrientedNeighborlessVertex(orientedNeighborSearch NeighbourSearchFunc) iter.Seq[IOWorker[K]] {
-	return func(yield func(IOWorker[K]) bool) {
+func (sg *IOGraph[K]) iterOrientedNeighborlessVertex(orientedNeighborSearch NeighbourSearchFunc) iter.Seq[IOWorkerVertex[K]] {
+	return func(yield func(IOWorkerVertex[K]) bool) {
 		neighborMap, err := orientedNeighborSearch()
 		if err != nil {
 			panic(err)
@@ -106,7 +111,30 @@ func (sg *IOGraph[K]) iterOrientedNeighborlessVertex(orientedNeighborSearch Neig
 	}
 }
 
-func (sg *IOGraph[K]) AddIOWorkerVertex(vertices iter.Seq[IOWorkerVertex[K]]) error {
+func (sg *IOGraph[K]) AddIOWorkerVertex(newVertex IOWorkerVertex[K]) error {
+	if sg.isRunning {
+		return ErrIsRunning
+	}
+	err := sg.AddVertex(newVertex)
+	if err != nil {
+		slog.Error("Error adding vertex", "vertex", newVertex.GetName(), "error", err)
+
+		return err
+	}
+	for _, p := range newVertex.GetParents() {
+		err := sg.AddEdge(p, newVertex.GetName())
+		if err != nil {
+			slog.Error("Error adding edge", "from", p, "to", newVertex.GetName(), "error", err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (sg *IOGraph[K]) AddIOWorkerVertices(vertices iter.Seq[IOWorkerVertex[K]]) error {
+	if sg.isRunning {
+		return ErrIsRunning
+	}
 	for newVertex := range vertices {
 		err := sg.AddVertex(newVertex)
 		if err != nil {
@@ -140,15 +168,18 @@ func (sg *IOGraph[K]) initialize() error {
 	if err != nil {
 		return fmt.Errorf("error while initializing graph: %w", err)
 	}
-	for currentVertexHash, parentVertex := range parentsMap {
+	for currentVertexHash, parentVertices := range parentsMap {
 		slog.Debug("Initializing vertex", "vertex", currentVertexHash)
 		currentVertex, err := sg.Vertex(currentVertexHash)
 		if err != nil {
 			slog.Error("Error while initializing graph: ", "error", err, "vertexHash", currentVertexHash)
 			return fmt.Errorf("error while initializing graph: %w", err)
 		}
+		if len(parentVertices) == 0 && sg.hasInputSet {
+			continue
+		}
+		parentsMapValuesIterator := maps.Values(parentVertices)
 
-		parentsMapValuesIterator := maps.Values(parentVertex)
 		slog.Debug("Initializing vertex set input",
 			"vertex", currentVertexHash,
 			"parents", slices.Collect(
@@ -194,10 +225,45 @@ func (sg *IOGraph[K]) start(ctx context.Context) <-chan error {
 	return diwo.Merge(errorsOutputC...)
 }
 
-func (sg *IOGraph[K]) Run(ctx context.Context) <-chan error {
+func (sg *IOGraph[K]) Run(ctx SyncContext) <-chan error {
+	defer func() {
+		sg.isRunning = true
+	}()
+	innerCtx, cancelFn := context.WithCancel(ctx)
+	sg.innerCancelFn = cancelFn
 	err := sg.initialize()
 	if err != nil {
 		return diwo.Once(err)
 	}
-	return sg.start(ctx)
+	return sg.start(innerCtx)
+}
+
+func (sg *IOGraph[K]) SetInput(inputC <-chan K) {
+	defer func() {
+		sg.hasInputSet = true
+	}()
+	iterChildless := slices.Collect(sg.IterParentlessVertex())
+	qty := len(iterChildless)
+	inputBroadcast := diwo.Broadcast(inputC, qty)
+	for i, vertex := range iterChildless {
+		vertex.SetInput(inputBroadcast[i])
+	}
+}
+
+func (sg *IOGraph[K]) Output() <-chan K {
+	iterChildless := slices.Collect(
+		helper.IterMap(
+			sg.IterChildlessVertex(),
+			func(vertexHash IOWorkerVertex[K]) <-chan K {
+				return vertexHash.Output()
+			},
+		),
+	)
+	return diwo.Merge(iterChildless...)
+}
+
+func (sg *IOGraph[K]) Close() error {
+	sg.innerCancelFn()
+	sg.isRunning = false
+	return nil
 }

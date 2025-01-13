@@ -11,6 +11,17 @@ import (
 type Worker[K any] interface {
 	Work(ctx context.Context, input K, yield func(elem K) error) error
 }
+type WorkerFunc[K any] func(ctx context.Context, input K, yield func(elem K) error) error
+
+func (wf WorkerFunc[K]) Work(ctx context.Context, input K, yield func(elem K) error) error {
+	return wf(ctx, input, yield)
+}
+
+type RunnerFunc[K any] func(ctx context.Context, input <-chan K, yield func(elem K) error) error
+
+func (rf RunnerFunc[K]) Run(ctx context.Context, input <-chan K, yield func(elem K) error) error {
+	return rf(ctx, input, yield)
+}
 
 type Runner[K any] interface {
 	Run(ctx context.Context, input <-chan K, yield func(elem K) error) error
@@ -19,9 +30,19 @@ type Runner[K any] interface {
 type Producer[K any] interface {
 	Produce(ctx context.Context, yield func(elem K) error) error
 }
+type ProducerFunc[K any] func(ctx context.Context, yield func(elem K) error) error
+
+func (pf ProducerFunc[K]) Produce(ctx context.Context, yield func(elem K) error) error {
+	return pf(ctx, yield)
+}
 
 type Consumer[K any] interface {
 	Consume(ctx context.Context, input <-chan K) error
+}
+type ConsumerFunc[K any] func(ctx context.Context, input <-chan K) error
+
+func (cf ConsumerFunc[K]) Consume(ctx context.Context, input <-chan K) error {
+	return cf(ctx, input)
 }
 
 type IOWorker[K any] interface {
@@ -104,7 +125,6 @@ func (s *syncWorker[K]) Run(ctx SyncContext) <-chan error {
 			if err != nil {
 				slog.Error("work failed", "error", err, "object", "syncWorker", "function", "Run", "name", typeName)
 				errC <- err
-				continue
 			}
 		}
 	}, diwo.WithName(reflect.TypeOf(s.worker).String()))

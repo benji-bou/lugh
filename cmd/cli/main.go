@@ -66,7 +66,7 @@ func RunTemplate(c *cli.Context) error {
 		return err
 	}
 	g := graph.New(graph.WithIOWorkerVertexIterator(tpl.WorkerVertexIterator()))
-	errC := g.Run(context.Background())
+	errC := g.Run(graph.NewContext(context.Background()))
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, os.Interrupt)
 	for {
