@@ -1,41 +1,18 @@
-package graph
+package graph_test
 
 import (
 	"context"
 	"slices"
 	"testing"
 
-	"github.com/benji-bou/diwo"
+	"github.com/benji-bou/lugh/core/graph"
+	"github.com/benji-bou/lugh/core/graph/graphtest"
 	"github.com/benji-bou/lugh/helper"
 )
 
 type testConfig struct {
 	name  string
 	input [][]string
-}
-
-func generateWorkerProducer[K any](ctx SyncContext, elements ...K) (worker IOWorker[K], workerStarter func()) {
-	worker = NewIOWorkerFromWorker(ForwardWorkerTestable[K]{})
-	inputC := diwo.FromSlice(elements)
-	worker.SetInput(inputC)
-	return worker, func() {
-		worker.Run(ctx)
-	}
-}
-
-func runWorkerConfig(tc testConfig, ctx SyncContext) (workers []IOWorker[string], workersStarter func()) {
-	workers = make([]IOWorker[string], 0, len(tc.input))
-	runs := make([]func(), 0, len(tc.input))
-	for i := range tc.input {
-		w, run := generateWorkerProducer(ctx, tc.input[i]...)
-		workers = append(workers, w)
-		runs = append(runs, run)
-	}
-	return workers, func() {
-		for _, r := range runs {
-			r()
-		}
-	}
 }
 
 func TestMergeVertexOutput(t *testing.T) {
@@ -46,11 +23,11 @@ func TestMergeVertexOutput(t *testing.T) {
 		{"2D multiple elements input", [][]string{{"element1a", "element1b", "element1c"}, {"element2a", "element2b", "element2c"}, {"element3a", "element3b", "element3c"}}},
 	}
 
-	g := New[string]()
+	g := graph.New[string]()
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := NewContext(context.Background())
-			workers, run := runWorkerConfig(tc, ctx)
+			ctx := graph.NewContext(context.Background())
+			workers, run := graphtest.GenerateWorkerProducers(ctx, tc.input...)
 			result := g.MergeVertexOutput(slices.Values(workers))
 			run()
 			resA := make([]string, 0, len(tc.input))
@@ -64,5 +41,17 @@ func TestMergeVertexOutput(t *testing.T) {
 				t.Errorf("MergeVertexOutput = %s; want %s", resA, tc.input)
 			}
 		})
+	}
+}
+
+func TestGraphAsWorker(t *testing.T) {
+	input := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	tableTestCases := []graphtest.WorkerConfigTest[int]{
+		{Name: "linear worker chain", DataTest: input, ExpectedOutput: input, IO: graphtest.GraphWorker[int](graphtest.SingleForward), Assert: graphtest.AssertDefaultEqual[int]},
+		{Name: "linear worker chain mult11 and odd", DataTest: input, ExpectedOutput: []int{11, 33, 55, 77, 99}, IO: graphtest.GraphWorker(graphtest.LinearWorkerChainMult2), Assert: graphtest.AssertDefaultEqual[int]},
+	}
+
+	for _, ttc := range tableTestCases {
+		graphtest.TestWorkerChain(t, ttc)
 	}
 }
