@@ -207,6 +207,19 @@ func (g Graph[K, T]) Split() ([]Graph[K, T], error) {
 	return res, nil
 }
 
+type ErrAddEdge[K comparable] struct {
+	GraphErr error
+	Edge     graph.Edge[K]
+}
+
+func (eae ErrAddEdge[K]) Error() string {
+	return fmt.Sprintf("failed to add edge %v-%v: %s", eae.Edge.Source, eae.Edge.Target, eae.GraphErr.Error())
+}
+
+func (eae ErrAddEdge[K]) Unwrap() error {
+	return eae.GraphErr
+}
+
 type GraphSelfDescribe[K comparable, T VertexSelfDescribe[K]] struct {
 	Graph[K, T]
 }
@@ -242,7 +255,6 @@ func (g *GraphSelfDescribe[K, T]) AddVertices(vertices iter.Seq[T]) error {
 		err := g.AddVertex(newVertex)
 		if err != nil {
 			slog.Error("Error adding vertex", "vertex", newVertex.GetName(), "error", err)
-
 			return err
 		}
 	}
