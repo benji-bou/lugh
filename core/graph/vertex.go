@@ -51,10 +51,13 @@ type IOWorker[K any] interface {
 	Output() <-chan K
 }
 
+type VertexSelfDescribe[K comparable] interface {
+	GetName() K
+	GetParents() []K
+}
 type IOWorkerVertex[K any] interface {
 	IOWorker[K]
-	GetName() string
-	GetParents() []string
+	VertexSelfDescribe[string]
 }
 
 type DefaultIOWorkerVertex[K any] struct {

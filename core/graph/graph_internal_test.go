@@ -15,7 +15,7 @@ func ForwardWorker[K any]() IOWorker[K] {
 
 func TestInitialize(t *testing.T) {
 	forwardWorker := ForwardWorker[int]()
-	g := New[int](WithIOWorkerVertexIterator(
+	g := NewIO[int](WithVertices(
 		slices.Values([]IOWorkerVertex[int]{
 			NewDefaultIOWorkerVertex(
 				"forward",

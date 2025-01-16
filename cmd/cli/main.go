@@ -53,7 +53,7 @@ func DrawGraphOnly(c *cli.Context) error {
 		return err
 	}
 
-	g := graph.New(graph.WithIOWorkerVertexIterator(tpl.WorkerVertexIterator()))
+	g := graph.NewIO(graph.WithVertices(tpl.WorkerVertexIterator()))
 
 	return g.DrawGraph(c.String("draw-graph-only"))
 }
@@ -65,7 +65,7 @@ func RunTemplate(c *cli.Context) error {
 		slog.Error("failed to start template", "error", err)
 		return err
 	}
-	g := graph.New(graph.WithIOWorkerVertexIterator(tpl.WorkerVertexIterator()))
+	g := graph.NewIO(graph.WithVertices(tpl.WorkerVertexIterator()))
 	errC := g.Run(graph.NewContext(context.Background()))
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, os.Interrupt)

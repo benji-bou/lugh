@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"iter"
@@ -10,96 +9,119 @@ import (
 	"os"
 	"slices"
 
-	"github.com/benji-bou/diwo"
-	"github.com/benji-bou/lugh/helper"
+	"github.com/benji-bou/lugh/helper/collections/set"
 	"github.com/dominikbraun/graph"
 	"github.com/dominikbraun/graph/draw"
 )
 
-var ErrIsRunning = errors.New("operation not permited while graph is running")
-
-type NeighbourSearchFunc func() (map[string]map[string]graph.Edge[string], error)
-
-type IOGraph[K any] struct {
-	graph.Graph[string, IOWorkerVertex[K]]
-	isRunning     bool
-	innerCancelFn context.CancelFunc
-	hasInputSet   bool
+type Graph[K comparable, T any] struct {
+	graph.Graph[K, T]
 }
 
-func WithIOWorkerVertexIterator[K any](it iter.Seq[IOWorkerVertex[K]]) IOGraphOption[K] {
-	return func(configure *IOGraph[K]) {
-		err := configure.AddIOWorkerVertices(it)
-		if err != nil {
-			slog.Warn("failed to add IOWorkerVertex iterator", "error", err)
-		}
-	}
+func New[K comparable, T any](hash graph.Hash[K, T], options ...func(*graph.Traits)) Graph[K, T] {
+	return Graph[K, T]{Graph: graph.New(hash, options...)}
 }
 
-type IOGraphOption[K any] func(*IOGraph[K])
-
-func New[K any](opt ...IOGraphOption[K]) *IOGraph[K] {
-	sg := &IOGraph[K]{}
-	sg.Graph = graph.New(func(spp IOWorkerVertex[K]) string {
-		return spp.GetName()
-	}, graph.Directed())
-	for _, o := range opt {
-		if o != nil {
-			o(sg)
-		}
-	}
-	return sg
-}
-
-func (sg *IOGraph[K]) DrawGraph(filepath string) error {
-	file, _ := os.Create(filepath) // #nosec G304
-	return draw.DOT(sg, file)
-}
-
-func (sg *IOGraph[K]) AdjancyVertices() (map[string]map[string]IOWorkerVertex[K], error) {
-	return sg.NeighborVertices(sg.AdjacencyMap)
-}
-
-func (sg *IOGraph[K]) PredecessorVertices() (map[string]map[string]IOWorkerVertex[K], error) {
-	return sg.NeighborVertices(sg.PredecessorMap)
-}
-
-func (sg *IOGraph[K]) NeighborVertices(orientedNeighborSearch NeighbourSearchFunc) (map[string]map[string]IOWorkerVertex[K], error) {
-	verticesMaps, err := orientedNeighborSearch()
+func (g Graph[K, T]) DrawGraph(filepath string) error {
+	file, err := os.Create(filepath) // #nosec G304
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("failed to draw graph: %w", err)
 	}
-	res := make(map[string]map[string]IOWorkerVertex[K], len(verticesMaps))
-	for currentVertexHash, neighborMap := range verticesMaps {
-		res[currentVertexHash] = make(map[string]IOWorkerVertex[K], len(neighborMap))
-		for neighborName := range neighborMap {
-			v, err := sg.Graph.Vertex(neighborName)
-			if err != nil {
-				return nil, err
-			}
-			res[currentVertexHash][neighborName] = v
+	return draw.DOT(g, file)
+}
+
+func (g Graph[K, T]) CloneFromEdge(edge ...graph.Edge[K]) (Graph[K, T], error) {
+	if len(edge) == 0 {
+		g, err := g.Clone()
+		if err != nil {
+			return Graph[K, T]{}, fmt.Errorf("failed to cloned from edges: %w", err)
 		}
+		return Graph[K, T]{Graph: g}, nil
+	}
+	newG := Graph[K, T]{Graph: graph.NewLike(g.Graph)}
+	for _, e := range edge {
+		src, err := g.Vertex(e.Source)
+		if err != nil {
+			return Graph[K, T]{}, fmt.Errorf("failed to get vertex %v: %w", e.Source, err)
+		}
+		err = newG.AddVertex(src)
+		if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
+			return Graph[K, T]{}, fmt.Errorf("failed to insert vertex %v:  %w", e.Source, err)
+		}
+		dst, err := g.Vertex(e.Target)
+		if err != nil {
+			return Graph[K, T]{}, fmt.Errorf("failed to get vertex %v: %w", e.Target, err)
+		}
+		err = newG.AddVertex(dst)
+		if err != nil && !errors.Is(err, graph.ErrVertexAlreadyExists) {
+			return Graph[K, T]{}, fmt.Errorf("failed to insert vertex %v:   %w", e.Target, err)
+		}
+		err = newG.AddEdge(e.Source, e.Target)
+		if err != nil && !errors.Is(err, graph.ErrEdgeAlreadyExists) {
+			return Graph[K, T]{}, fmt.Errorf("failed to insert edge %v-%v:  %w", e.Source, e.Target, err)
+		}
+	}
+	return newG, nil
+}
+
+// Search Methods
+
+func (g Graph[K, T]) Vertices() (map[K]T, error) {
+	neighbors, err := g.AdjacencyMap()
+	if err != nil {
+		return nil, fmt.Errorf("vertices failed to get all: %w", err)
+	}
+	res := make(map[K]T)
+	for k := range neighbors {
+		vertex, err := g.Vertex(k)
+		if err != nil {
+			return nil, fmt.Errorf("vertices failed to get vertex %v: %w", k, err)
+		}
+		res[k] = vertex
 	}
 	return res, nil
 }
 
-func (sg *IOGraph[K]) IterChildlessVertex() iter.Seq[IOWorkerVertex[K]] {
-	return sg.iterOrientedNeighborlessVertex(sg.AdjacencyMap)
+func (g Graph[K, T]) VertexEdges(hash K) ([]graph.Edge[K], error) {
+	allEdges, err := g.UndirectedNeighbors()
+	if err != nil {
+		return nil, fmt.Errorf("vertexedges failed to get all UndirectedNeighbors: %w", err)
+	}
+	neighbors, ok := allEdges[hash]
+	if !ok {
+		return nil, fmt.Errorf("vertexedges failed to find vertex %v: %w", hash, graph.ErrVertexNotFound)
+	}
+	return slices.Collect(maps.Values(neighbors)), nil
 }
 
-func (sg *IOGraph[K]) IterParentlessVertex() iter.Seq[IOWorkerVertex[K]] {
-	return sg.iterOrientedNeighborlessVertex(sg.PredecessorMap)
+type NeighbourSearchFunc[K comparable] func() (map[K]map[K]graph.Edge[K], error)
+
+func (g Graph[K, T]) UndirectedNeighbors() (map[K]map[K]graph.Edge[K], error) {
+	predecessors, err := g.PredecessorMap()
+	if err != nil {
+		return nil, fmt.Errorf("undirectedneighbors failed to get predecessors: %w", err)
+	}
+	adjancies, err := g.AdjacencyMap()
+	if err != nil {
+		return nil, fmt.Errorf("undirectedneighbors failed to get adjacencies: %w", err)
+	}
+	for hash, neighbors := range adjancies {
+		if predecessorsNeighbors, ok := predecessors[hash]; ok {
+			maps.Insert(neighbors, maps.All(predecessorsNeighbors))
+		}
+	}
+	return adjancies, nil
 }
 
-func (sg *IOGraph[K]) iterOrientedNeighborlessVertex(orientedNeighborSearch NeighbourSearchFunc) iter.Seq[IOWorkerVertex[K]] {
-	return func(yield func(IOWorkerVertex[K]) bool) {
+func (g Graph[K, T]) iterOrientedNeighborlessVertex(orientedNeighborSearch NeighbourSearchFunc[K]) iter.Seq[T] {
+	return func(yield func(T) bool) {
 		neighborMap, err := orientedNeighborSearch()
 		if err != nil {
 			panic(err)
 		}
 		for vertexID, neighbors := range neighborMap {
 			if len(neighbors) == 0 {
-				vertex, err := sg.Vertex(vertexID)
+				vertex, err := g.Vertex(vertexID)
 				if err != nil {
 					continue
 				}
@@ -111,18 +133,95 @@ func (sg *IOGraph[K]) iterOrientedNeighborlessVertex(orientedNeighborSearch Neig
 	}
 }
 
-func (sg *IOGraph[K]) AddIOWorkerVertex(newVertex IOWorkerVertex[K]) error {
-	if sg.isRunning {
-		return ErrIsRunning
+func (g Graph[K, T]) IterChildlessVertex() iter.Seq[T] {
+	return g.iterOrientedNeighborlessVertex(g.AdjacencyMap)
+}
+
+func (g Graph[K, T]) IterParentlessVertex() iter.Seq[T] {
+	return g.iterOrientedNeighborlessVertex(g.PredecessorMap)
+}
+
+func (g Graph[K, T]) NeighborVertices(orientedNeighborSearch NeighbourSearchFunc[K]) (map[K]map[K]T, error) {
+	verticesMaps, err := orientedNeighborSearch()
+	if err != nil {
+		return nil, err
 	}
-	err := sg.AddVertex(newVertex)
+	res := make(map[K]map[K]T, len(verticesMaps))
+	for currentVertexHash, neighborMap := range verticesMaps {
+		res[currentVertexHash] = make(map[K]T, len(neighborMap))
+		for neighborName := range neighborMap {
+			v, err := g.Graph.Vertex(neighborName)
+			if err != nil {
+				return nil, err
+			}
+			res[currentVertexHash][neighborName] = v
+		}
+	}
+	return res, nil
+}
+
+func (g Graph[K, T]) AdjancyVertices() (map[K]map[K]T, error) {
+	return g.NeighborVertices(g.AdjacencyMap)
+}
+
+func (g Graph[K, T]) PredecessorVertices() (map[K]map[K]T, error) {
+	return g.NeighborVertices(g.PredecessorMap)
+}
+
+func (g Graph[K, T]) Split() ([]Graph[K, T], error) {
+	splittedEdges := [][]graph.Edge[K]{}
+	verticesNeighborsMap, err := g.UndirectedNeighbors()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get adjencyMap %w", err)
+	}
+	for vertexHash := range verticesNeighborsMap {
+		listEdges := make([]graph.Edge[K], 0)
+		stack := set.New[K](vertexHash)
+
+		for current := range stack.Next() {
+			for neighborHash, neighborEdge := range maps.All(verticesNeighborsMap[current]) {
+				if ok := stack.Contains(neighborHash); !ok {
+					listEdges = append(listEdges, neighborEdge)
+					stack.Add(neighborHash)
+				}
+			}
+			delete(verticesNeighborsMap, current)
+		}
+		splittedEdges = append(splittedEdges, listEdges)
+	}
+	res := make([]Graph[K, T], 0, len(splittedEdges))
+	for _, edges := range splittedEdges {
+		newG, err := g.CloneFromEdge(edges...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to split graph %w", err)
+		}
+		res = append(res, newG)
+	}
+	return res, nil
+}
+
+type GraphSelfDescribe[K comparable, T VertexSelfDescribe[K]] struct {
+	Graph[K, T]
+}
+
+func NewSelfDescribed[K comparable, T VertexSelfDescribe[K]](
+	hash graph.Hash[K, T],
+	options ...func(*graph.Traits),
+) *GraphSelfDescribe[K, T] {
+	return &GraphSelfDescribe[K, T]{Graph: Graph[K, T]{Graph: graph.New(hash, options...)}}
+}
+
+// Inserts Methods
+
+func (g *GraphSelfDescribe[K, T]) AddSelfDescribeVertex(newVertex T) error {
+	err := g.AddVertex(newVertex)
 	if err != nil {
 		slog.Error("Error adding vertex", "vertex", newVertex.GetName(), "error", err)
 
 		return err
 	}
 	for _, p := range newVertex.GetParents() {
-		err := sg.AddEdge(p, newVertex.GetName())
+		err := g.AddEdge(p, newVertex.GetName())
 		if err != nil {
 			slog.Error("Error adding edge", "from", p, "to", newVertex.GetName(), "error", err)
 			return err
@@ -131,12 +230,9 @@ func (sg *IOGraph[K]) AddIOWorkerVertex(newVertex IOWorkerVertex[K]) error {
 	return nil
 }
 
-func (sg *IOGraph[K]) AddIOWorkerVertices(vertices iter.Seq[IOWorkerVertex[K]]) error {
-	if sg.isRunning {
-		return ErrIsRunning
-	}
+func (g *GraphSelfDescribe[K, T]) AddVertices(vertices iter.Seq[T]) error {
 	for newVertex := range vertices {
-		err := sg.AddVertex(newVertex)
+		err := g.AddVertex(newVertex)
 		if err != nil {
 			slog.Error("Error adding vertex", "vertex", newVertex.GetName(), "error", err)
 
@@ -145,125 +241,12 @@ func (sg *IOGraph[K]) AddIOWorkerVertices(vertices iter.Seq[IOWorkerVertex[K]]) 
 	}
 	for newVertex := range vertices {
 		for _, p := range newVertex.GetParents() {
-			err := sg.AddEdge(p, newVertex.GetName())
+			err := g.AddEdge(p, newVertex.GetName())
 			if err != nil {
 				slog.Error("Error adding edge", "from", p, "to", newVertex.GetName(), "error", err)
 				return err
 			}
 		}
 	}
-	return nil
-}
-
-func (*IOGraph[K]) MergeVertexOutput(vertices iter.Seq[IOWorker[K]]) <-chan K {
-	resC := helper.IterMap(vertices, func(vertex IOWorker[K]) <-chan K {
-		return vertex.Output()
-	})
-	return diwo.Merge(slices.Collect(resC)...)
-}
-
-func (sg *IOGraph[K]) initialize() error {
-	slog.Debug("Initializing graph")
-	parentsMap, err := sg.PredecessorVertices()
-	if err != nil {
-		return fmt.Errorf("error while initializing graph: %w", err)
-	}
-	for currentVertexHash, parentVertices := range parentsMap {
-		slog.Debug("Initializing vertex", "vertex", currentVertexHash)
-		currentVertex, err := sg.Vertex(currentVertexHash)
-		if err != nil {
-			slog.Error("Error while initializing graph: ", "error", err, "vertexHash", currentVertexHash)
-			return fmt.Errorf("error while initializing graph: %w", err)
-		}
-		if len(parentVertices) == 0 && sg.hasInputSet {
-			continue
-		}
-		parentsMapValuesIterator := maps.Values(parentVertices)
-
-		slog.Debug("Initializing vertex set input",
-			"vertex", currentVertexHash,
-			"parents", slices.Collect(
-				helper.IterMap(parentsMapValuesIterator,
-					func(elem IOWorkerVertex[K]) string {
-						return elem.GetName()
-					},
-				),
-			))
-		currentVertex.SetInput(
-			sg.MergeVertexOutput(
-				helper.IterMap(parentsMapValuesIterator,
-					func(elem IOWorkerVertex[K]) IOWorker[K] {
-						return elem
-					},
-				),
-			),
-		)
-	}
-	slog.Debug("End of initializing graph")
-	return nil
-}
-
-func (sg *IOGraph[K]) start(ctx context.Context) <-chan error {
-	ctxSync := NewContext(ctx)
-	vertexMap, _ := sg.AdjacencyMap()
-	if len(vertexMap) == 0 {
-		return diwo.Once(errors.New("empty graph. No stage loaded"))
-	}
-	errorsOutputC := make([]<-chan error, 0, len(vertexMap))
-	for vertexHash := range vertexMap {
-		vertex, err := sg.Vertex(vertexHash)
-		if err != nil {
-			slog.Error("Error while start running Io Graph: ", "error", err, "vertexHash", vertexHash)
-			continue
-		}
-		slog.Debug("Starting run vertex", "vertex", vertexHash)
-		errorsOutputC = append(errorsOutputC, vertex.Run(ctxSync))
-	}
-	slog.Debug("Wait for vertex worker synchronization")
-	ctxSync.Synchronize()
-	slog.Debug("End of starting graph")
-	return diwo.Merge(errorsOutputC...)
-}
-
-func (sg *IOGraph[K]) Run(ctx SyncContext) <-chan error {
-	defer func() {
-		sg.isRunning = true
-	}()
-	innerCtx, cancelFn := context.WithCancel(ctx)
-	sg.innerCancelFn = cancelFn
-	err := sg.initialize()
-	if err != nil {
-		return diwo.Once(err)
-	}
-	return sg.start(innerCtx)
-}
-
-func (sg *IOGraph[K]) SetInput(inputC <-chan K) {
-	defer func() {
-		sg.hasInputSet = true
-	}()
-	iterChildless := slices.Collect(sg.IterParentlessVertex())
-	qty := len(iterChildless)
-	inputBroadcast := diwo.Broadcast(inputC, qty)
-	for i, vertex := range iterChildless {
-		vertex.SetInput(inputBroadcast[i])
-	}
-}
-
-func (sg *IOGraph[K]) Output() <-chan K {
-	iterChildless := slices.Collect(
-		helper.IterMap(
-			sg.IterChildlessVertex(),
-			func(vertexHash IOWorkerVertex[K]) <-chan K {
-				return vertexHash.Output()
-			},
-		),
-	)
-	return diwo.Merge(iterChildless...)
-}
-
-func (sg *IOGraph[K]) Close() error {
-	sg.innerCancelFn()
-	sg.isRunning = false
 	return nil
 }
