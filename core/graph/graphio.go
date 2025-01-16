@@ -163,3 +163,27 @@ func (sg *IOGraph[K]) Close() error {
 	sg.isRunning = false
 	return nil
 }
+
+func (sg *IOGraph[K]) CloneFromEdge(edge ...graph.Edge[string]) (*IOGraph[K], error) {
+	mewG, err := sg.GraphSelfDescribe.CloneFromEdge(edge...)
+	if err != nil {
+		return nil, fmt.Errorf("error cloning inner graph: %w", err)
+	}
+	return &IOGraph[K]{GraphSelfDescribe: *mewG}, nil
+}
+
+func (sg *IOGraph[K]) Split() ([]*IOGraph[K], error) {
+	splittedEdges, err := sg.SplitEdges()
+	if err != nil {
+		return nil, fmt.Errorf("failed to split graph %w", err)
+	}
+	res := make([]*IOGraph[K], 0, len(splittedEdges))
+	for _, edges := range splittedEdges {
+		newG, err := sg.CloneFromEdge(edges...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to split graph %w", err)
+		}
+		res = append(res, newG)
+	}
+	return res, nil
+}

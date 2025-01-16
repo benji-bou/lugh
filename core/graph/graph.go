@@ -168,7 +168,7 @@ func (g Graph[K, T]) PredecessorVertices() (map[K]map[K]T, error) {
 	return g.NeighborVertices(g.PredecessorMap)
 }
 
-func (g Graph[K, T]) Split() ([]Graph[K, T], error) {
+func (g Graph[K, T]) SplitEdges() ([][]graph.Edge[K], error) {
 	splittedEdges := [][]graph.Edge[K]{}
 	verticesNeighborsMap, err := g.UndirectedNeighbors()
 	if err != nil {
@@ -177,7 +177,6 @@ func (g Graph[K, T]) Split() ([]Graph[K, T], error) {
 	for vertexHash := range verticesNeighborsMap {
 		listEdges := make([]graph.Edge[K], 0)
 		stack := set.New[K](vertexHash)
-
 		for current := range stack.Next() {
 			for neighborHash, neighborEdge := range maps.All(verticesNeighborsMap[current]) {
 				if ok := stack.Contains(neighborHash); !ok {
@@ -188,6 +187,14 @@ func (g Graph[K, T]) Split() ([]Graph[K, T], error) {
 			delete(verticesNeighborsMap, current)
 		}
 		splittedEdges = append(splittedEdges, listEdges)
+	}
+	return splittedEdges, nil
+}
+
+func (g Graph[K, T]) Split() ([]Graph[K, T], error) {
+	splittedEdges, err := g.SplitEdges()
+	if err != nil {
+		return nil, fmt.Errorf("failed to split graph %w", err)
 	}
 	res := make([]Graph[K, T], 0, len(splittedEdges))
 	for _, edges := range splittedEdges {
@@ -249,4 +256,28 @@ func (g *GraphSelfDescribe[K, T]) AddVertices(vertices iter.Seq[T]) error {
 		}
 	}
 	return nil
+}
+
+func (g *GraphSelfDescribe[K, T]) CloneFromEdge(edge ...graph.Edge[K]) (*GraphSelfDescribe[K, T], error) {
+	mewG, err := g.Graph.CloneFromEdge(edge...)
+	if err != nil {
+		return nil, fmt.Errorf("error cloning inner graph: %w", err)
+	}
+	return &GraphSelfDescribe[K, T]{Graph: mewG}, nil
+}
+
+func (g *GraphSelfDescribe[K, T]) Split() ([]*GraphSelfDescribe[K, T], error) {
+	splittedEdges, err := g.SplitEdges()
+	if err != nil {
+		return nil, fmt.Errorf("failed to split graph %w", err)
+	}
+	res := make([]*GraphSelfDescribe[K, T], 0, len(splittedEdges))
+	for _, edges := range splittedEdges {
+		newG, err := g.CloneFromEdge(edges...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to split graph %w", err)
+		}
+		res = append(res, newG)
+	}
+	return res, nil
 }
