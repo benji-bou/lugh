@@ -4,7 +4,7 @@ go 1.23.4
 
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
-	github.com/benji-bou/diwo v0.0.7
+	github.com/benji-bou/diwo v0.0.8
 	github.com/docker/docker v27.4.1+incompatible
 	github.com/dominikbraun/graph v0.23.0
 	github.com/google/martian/v3 v3.3.3
