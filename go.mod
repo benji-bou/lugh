@@ -14,7 +14,7 @@ require (
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/projectdiscovery/katana v1.1.2
 	github.com/samber/slog-echo v1.15.0
-	github.com/swaggest/jsonschema-go v0.3.72
+	github.com/swaggest/jsonschema-go v0.3.73
 	github.com/urfave/cli/v2 v2.27.5
 	github.com/zricethezav/gitleaks/v8 v8.22.1
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
