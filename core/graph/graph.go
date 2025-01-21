@@ -258,16 +258,18 @@ func (g *GraphSelfDescribe[K, T]) AddVertices(vertices iter.Seq[T]) error {
 			return err
 		}
 	}
+	var errs error
 	for newVertex := range vertices {
 		for _, p := range newVertex.GetParents() {
 			err := g.AddEdge(p, newVertex.GetName())
-			if err != nil {
-				slog.Error("Error adding edge", "from", p, "to", newVertex.GetName(), "error", err)
-				return err
+			if errors.Is(err, graph.ErrVertexNotFound) {
+				errs = errors.Join(errs, ErrAddEdge[K]{GraphErr: err, Edge: graph.Edge[K]{Source: p, Target: newVertex.GetName()}})
+			} else if err != nil {
+				return fmt.Errorf("failed to add edge: %w", err)
 			}
 		}
 	}
-	return nil
+	return errs
 }
 
 func (g *GraphSelfDescribe[K, T]) CloneFromEdge(edge ...graph.Edge[K]) (*GraphSelfDescribe[K, T], error) {
