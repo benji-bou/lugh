@@ -92,7 +92,7 @@ func NonRunningSingleForwardWorker() (inputC chan<- []byte, outputC <-chan []byt
 
 // GraphWorker is an helper function that Run a `graph as a IOWorker`  setting input and output of the graph`
 func GraphWorker[K any](workers iter.Seq[graph.IOWorkerVertex[K]]) IOFunc[K] {
-	gr := graph.New(graph.WithIOWorkerVertexIterator(workers))
+	gr := graph.NewIO(graph.WithVertices(workers))
 	return func() (chan<- K, <-chan K, <-chan error) {
 		inputC := make(chan K)
 		ctx := graph.NewContext(context.Background())

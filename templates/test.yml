@@ -7,80 +7,31 @@ stages:
   martianProxy:
     plugin: martianProxy
     config:
+      cert: "../../../../certs/cert.pem"
+      key: "../../../../certs/key.pem"
       modifier:
         url.RegexFilter:
-          regex: http(s|):\/\/(.*\.|)bioserenity\.com
+          regex: http(s|):\/\/(.*\.|)bioserenity\.cloud
           modifier:
             output:
           scope:
             - request
             - response
-  distinct:
+  extractRequestURL:
     parents:
       - martianProxy
+    plugin: transform
+    config:
+     - goTemplate:
+        format: json
+        pattern: "{{ .request.url }}\n"
+  distinctURL:
+    parents:
+      - extractRequestURL
     plugin: distinct
-    pipe:
-      - goTemplate:
-          format: json
-          pattern: "{{ .request.url }}\n"
-
-  katana:
-    parents:
-      - distinct
-    plugin: katana
-
-  distinct_output:
-    parents:
-      - katana
-      - martianProxy
-    config:
-      goTemplateFilter: "{{ .request.url }}"
-    plugin: distinct
-
-  leaks:
-    parents:
-      - distinct_output
-    plugin: leaks
-
-  leaks_output:
-    parents:
-      - leaks
-    plugin: rawfile
-    pipe:
-      - insert:
-          content: "\n"
-    config:
-      filepath: ./leaks_res.txt
-
-  katana_output:
-    parents:
-      - katana
-    pipe:
-      - goTemplate:
-          pattern: "{{ .request.url }}"
-      - insert:
-          content: "\n"
-    config:
-      filepath: ./katana_res.txt
-    plugin: rawfile
   martian_output:
     parents:
-      - martianProxy
-    pipe:
-      - goTemplate:
-          pattern: "{{ .request.url }}"
-      - insert:
-          content: "\n"
+      - distinctURL
     config:
       filepath: ./martian_res.txt
-    plugin: rawfile
-  consolidated_output:
-    parents:
-      - katana
-      - martianProxy
-    pipe:
-      - insert:
-          content: "\n"
-    config:
-      filepath: ./consolidated_res.txt
     plugin: rawfile

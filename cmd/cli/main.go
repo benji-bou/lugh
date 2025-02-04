@@ -30,11 +30,17 @@ func main() {
 				Usage:    "Pipeline template to execute",
 				Required: true,
 			},
+			&cli.StringFlag{
+				Name:    "plugins-path",
+				Aliases: []string{"p"},
+				Usage:   "directory path of the plugins",
+				Value:   "~/.lugh/plugins",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			defer grpc.CleanupClients()
 
-			helper.SetLog(slog.LevelDebug, false)
+			helper.SetLog(slog.LevelWarn, false)
 			if c.IsSet("draw-graph-only") {
 				return DrawGraphOnly(c)
 			}
@@ -53,7 +59,7 @@ func DrawGraphOnly(c *cli.Context) error {
 		return err
 	}
 
-	g := graph.New(graph.WithIOWorkerVertexIterator(tpl.WorkerVertexIterator()))
+	g := graph.NewIO(graph.WithVertices(tpl.WorkerVertexIterator(c.String("plugins-path"))))
 
 	return g.DrawGraph(c.String("draw-graph-only"))
 }
@@ -65,7 +71,7 @@ func RunTemplate(c *cli.Context) error {
 		slog.Error("failed to start template", "error", err)
 		return err
 	}
-	g := graph.New(graph.WithIOWorkerVertexIterator(tpl.WorkerVertexIterator()))
+	g := graph.NewIO(graph.WithVertices(tpl.WorkerVertexIterator(c.String("plugins-path"))))
 	errC := g.Run(graph.NewContext(context.Background()))
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, os.Interrupt)

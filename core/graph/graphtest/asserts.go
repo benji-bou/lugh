@@ -44,7 +44,9 @@ func AssertDefaultEqualByteSlices(t *testing.T, dataTest [][]byte, outputC <-cha
 	for {
 		select {
 		case err := <-errC:
-			t.Error(err)
+			if err != nil {
+				t.Errorf("received error from errC %s", err.Error())
+			}
 			return
 		case outptutData, ok := <-outputC:
 			if !ok {

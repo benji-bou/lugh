@@ -40,7 +40,7 @@ func (*Plugin) GetInputSchema() ([]byte, error) {
 }
 
 func (tp *Plugin) Config(config []byte) error {
-	decodedConfig := []map[string]*yaml.Node{}
+	decodedConfig := []map[string]yaml.Node{}
 	err := yaml.Unmarshal(config, &decodedConfig)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal config: %w", err)
@@ -54,10 +54,11 @@ func (tp *Plugin) Config(config []byte) error {
 		if len(transformConfigs) > 1 {
 			return errors.New("a transformer can only have one config per step")
 		}
+		//nolint:gocritic // just test
 		for transformName, transformConfig := range transformConfigs {
-			t, err := NewTransform(transformName, transformConfig)
+			t, err := NewTransform(transformName, &transformConfig)
 			if err != nil {
-				return fmt.Errorf("failed to create transform: %s: %w", transformName, err)
+				return fmt.Errorf("create transform: %s: %w", transformName, err)
 			}
 			tp.Transformers = append(tp.Transformers, t)
 		}

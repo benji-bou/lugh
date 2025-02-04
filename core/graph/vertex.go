@@ -51,10 +51,13 @@ type IOWorker[K any] interface {
 	Output() <-chan K
 }
 
+type VertexSelfDescribe[K comparable] interface {
+	GetName() K
+	GetParents() []K
+}
 type IOWorkerVertex[K any] interface {
 	IOWorker[K]
-	GetName() string
-	GetParents() []string
+	VertexSelfDescribe[string]
 }
 
 type DefaultIOWorkerVertex[K any] struct {
@@ -176,7 +179,10 @@ func NewIOWorkerFromConsumer[K any](consumer Consumer[K]) IOWorker[K] {
 func (c *consumerWorker[K]) Run(ctx SyncContext) <-chan error {
 	ctx.Initializing()
 	return diwo.New(func(eC chan<- error) {
-		close(c.outputC)
+		// Do not close(c.outputC) even if not output will ever be sent.
+		// Because the GRPC Client won't send any data to plugin that don't produce data back
+		// Closing outputC means closing the output grpc stream. Informing client that
+		// no more data will be sent anymore
 		ctx.Initialized()
 		err := c.consumer.Consume(ctx, c.inputC)
 		if err != nil {

@@ -190,7 +190,7 @@ func NewTransform(name string, config *yaml.Node) (Transformer, error) {
 		}{}
 		err := config.Decode(&configInsert)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build regex Transform because: %w", err)
+			return nil, fmt.Errorf("decode insert Transform because: %w", err)
 		}
 		return InsertString(configInsert.Content), nil
 	case "split":

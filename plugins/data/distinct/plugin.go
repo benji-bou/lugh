@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"html/template"
 	"log/slog"
-	"net/http"
-	"time"
 
 	"github.com/benji-bou/lugh/core/plugins/grpc"
 	"github.com/benji-bou/lugh/core/plugins/pluginapi"
@@ -68,7 +66,7 @@ func (mp *MemFilter) Work(_ context.Context, input []byte, yield func(elem []byt
 	slog.Debug("received data", "data", string(input))
 	buff := &bytes.Buffer{}
 	if mp.goTemplateFilter != nil {
-		err := mp.goTemplateFilter.Execute(buff, input)
+		err := mp.goTemplateFilter.Execute(buff, string(input))
 		if err != nil {
 			return fmt.Errorf("couldn't execute Distinct go template pattern because %w", err)
 		}
@@ -92,14 +90,6 @@ func (mp *MemFilter) Work(_ context.Context, input []byte, yield func(elem []byt
 }
 
 func main() {
-	go func() {
-		server := &http.Server{
-			Addr:              "localhost:6061",
-			ReadHeaderTimeout: 5 * time.Second,
-		}
-		err := server.ListenAndServe()
-		slog.Error("server failed", "err", err)
-	}()
 	helper.SetLog(slog.LevelError, true)
 	plugin := grpc.NewPlugin("distinct",
 		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromWorker(NewMemFilter())),
