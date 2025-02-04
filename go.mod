@@ -11,7 +11,7 @@ require (
 	github.com/google/martian/v3 v3.3.3
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-hclog v1.6.3
-	github.com/hashicorp/go-plugin v1.6.2
+	github.com/hashicorp/go-plugin v1.6.3
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/projectdiscovery/katana v1.1.2
 	github.com/samber/slog-echo v1.15.0
