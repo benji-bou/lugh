@@ -11,7 +11,7 @@ import (
 )
 
 type PluginLoader interface {
-	LoadPlugin(name string) graph.IOWorkerVertex[[]byte]
+	LoadPlugin(name string, defaultPluginsPath string) graph.IOWorkerVertex[[]byte]
 }
 
 type Template[S PluginLoader] struct {
@@ -52,10 +52,10 @@ func NewTemplate[S PluginLoader](raw []byte) (Template[S], error) {
 	return tpl, err
 }
 
-func (t Template[S]) WorkerVertexIterator() iter.Seq[graph.IOWorkerVertex[[]byte]] {
+func (t Template[S]) WorkerVertexIterator(defaultPluginsPath string) iter.Seq[graph.IOWorkerVertex[[]byte]] {
 	return func(yield func(graph.IOWorkerVertex[[]byte]) bool) {
 		for name, rawStage := range t.Stages {
-			worker := rawStage.LoadPlugin(name)
+			worker := rawStage.LoadPlugin(name, defaultPluginsPath)
 			slog.Debug("vertex", "name", worker.GetName(), "parents", worker.GetParents())
 			if worker != nil {
 				if !yield(worker) {

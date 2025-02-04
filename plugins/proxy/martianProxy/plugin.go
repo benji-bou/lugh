@@ -29,6 +29,8 @@ func (y YieldWriter) Write(data []byte) (int, error) {
 
 type MartianInputConfig struct {
 	Modifier json.RawMessage `json:"modifier"`
+	Cert     string
+	Key      string
 }
 
 type MartianPlugin struct {
@@ -88,7 +90,7 @@ func (mp *MartianPlugin) Produce(ctx context.Context, yield func(elem []byte) er
 }
 
 func main() {
-	helper.SetLog(slog.LevelDebug, true)
+	helper.SetLog(slog.LevelWarn, true)
 	plugin := grpc.NewPlugin("martianProxy",
 		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromProducer(NewMartianPlugin())),
 	)
@@ -96,15 +98,20 @@ func main() {
 }
 
 //nolint:mnd // this ius ok in that context
-func (mp MartianPlugin) getOptions(wC io.Writer) []helper.OptionError[martian.Proxy] {
+func (mp *MartianPlugin) getOptions(wC io.Writer) []helper.OptionError[martian.Proxy] {
 	opt := []helper.OptionError[martian.Proxy]{
 		martian.WitDefaultWriter(wC),
-		martian.WithMitmCertsFile(time.Hour*24*365, "lugh", "lugh", false,
-			"/Users/benjaminbouachour/Private/Projects/lugh/plugins/proxy/martianProxy/certs/cert.crt",
-			"/Users/benjaminbouachour/Private/Projects/lugh/plugins/proxy/martianProxy/certs/cert.key",
-			false,
-		),
 	}
+	if mp.config.Cert != "" && mp.config.Key != "" {
+		opt = append(opt, martian.WithMitmCertsFile(time.Hour*24*365, "lugh", "lugh", false,
+			mp.config.Cert,
+			mp.config.Key,
+			false,
+		))
+	} else {
+		opt = append(opt, martian.WithMitmCertsGenerated(time.Hour*24*365, "lugh", "lugh", false, false))
+	}
+
 	if len(mp.config.Modifier) > 0 {
 		opt = append(opt, martian.WithModifiers([]byte(mp.config.Modifier)))
 	} else {

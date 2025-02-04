@@ -250,8 +250,9 @@ func (g *GraphSelfDescribe[K, T]) AddSelfDescribeVertex(newVertex T) error {
 	return nil
 }
 
-func (g *GraphSelfDescribe[K, T]) AddVertices(vertices iter.Seq[T]) error {
-	for newVertex := range vertices {
+func (g *GraphSelfDescribe[K, T]) AddVertices(verticesIter iter.Seq[T]) error {
+	vertices := slices.Collect(verticesIter)
+	for _, newVertex := range vertices {
 		err := g.AddVertex(newVertex)
 		if err != nil {
 			slog.Error("Error adding vertex", "vertex", newVertex.GetName(), "error", err)
@@ -259,7 +260,7 @@ func (g *GraphSelfDescribe[K, T]) AddVertices(vertices iter.Seq[T]) error {
 		}
 	}
 	var errs error
-	for newVertex := range vertices {
+	for _, newVertex := range vertices {
 		for _, p := range newVertex.GetParents() {
 			err := g.AddEdge(p, newVertex.GetName())
 			if errors.Is(err, graph.ErrVertexNotFound) {

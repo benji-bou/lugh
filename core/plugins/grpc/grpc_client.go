@@ -155,10 +155,15 @@ func (m *GRPCClient) handleStreamInput(ctx context.Context) (err error) {
 		return err
 	}
 	outputDone := false
+
 	runloop := NewRunLoop()
 	for {
+		var outputDoneC <-chan struct{}
+		if !outputDone {
+			outputDoneC = m.clientStreamOutputDone
+		}
 		select {
-		case _, ok := <-m.clientStreamOutputDone:
+		case _, ok := <-outputDoneC:
 			// `!ok` here `clientStreamOutputDone` is closed means that we won't receive anymore data from the plugin server.
 			// Not necessary to send data to the plugin server if no response will ever be sent back
 			if !ok {

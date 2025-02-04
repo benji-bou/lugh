@@ -17,10 +17,10 @@ vars:
   PLUGINS_DIR: "./plugins"
   BIN_DIR: "./bin"
   PLUGIN_BIN_DIR: "{{.BIN_DIR}}/plugins"
-  CMD_OUTPUT: "{{.BIN_DIR}}/cli"
+  CMD_OUTPUT: "{{.BIN_DIR}}/lugh"
 
 tasks:
-  default:
+  all:
     desc: Test and Build everything
     cmds:
       - task: protobuf
