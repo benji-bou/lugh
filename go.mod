@@ -17,7 +17,7 @@ require (
 	github.com/samber/slog-echo v1.15.1
 	github.com/swaggest/jsonschema-go v0.3.73
 	github.com/urfave/cli/v2 v2.27.5
-	github.com/zricethezav/gitleaks/v8 v8.23.3
+	github.com/zricethezav/gitleaks/v8 v8.24.0
 	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.4
@@ -140,7 +140,7 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/swaggest/refl v1.3.0 // indirect
 	github.com/syndtr/goleveldb v1.0.0 // indirect
-	github.com/tetratelabs/wazero v1.8.2 // indirect
+	github.com/tetratelabs/wazero v1.9.0 // indirect
 	github.com/tidwall/btree v1.7.0 // indirect
 	github.com/tidwall/buntdb v1.3.2 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
@@ -152,7 +152,7 @@ require (
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
-	github.com/wasilibs/go-re2 v1.8.0 // indirect
+	github.com/wasilibs/go-re2 v1.9.0 // indirect
 	github.com/wasilibs/wazero-helpers v0.0.0-20240620070341-3dff1577cd52 // indirect
 	github.com/weppos/publicsuffix-go v0.40.3-0.20241218111332-1518a6f1cb34 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
