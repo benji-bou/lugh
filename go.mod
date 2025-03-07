@@ -20,7 +20,7 @@ require (
 	github.com/zricethezav/gitleaks/v8 v8.23.3
 	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c
 	google.golang.org/grpc v1.70.0
-	google.golang.org/protobuf v1.36.4
+	google.golang.org/protobuf v1.36.5
 	gopkg.in/yaml.v3 v3.0.1
 )
 
