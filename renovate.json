@@ -3,4 +3,9 @@
   "extends": [
     "config:recommended"
   ]
+  "rangeStrategy": "pin",
+  "ignorePaths": [],
+  "packageRules": [{
+    "automerge": true
+  }]
 }
