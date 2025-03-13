@@ -8,6 +8,8 @@ stages:
     config:
       data: "toto"
   output:
-    plugin: output
+    plugin: rawfile
+    config:
+      filepath: "./output.txt"
     parents:
       - inputName

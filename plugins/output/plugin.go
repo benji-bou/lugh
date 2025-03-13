@@ -46,7 +46,7 @@ func (Output) Consume(ctx context.Context, input <-chan []byte) error {
 func main() {
 	helper.SetLog(slog.LevelDebug, true)
 	plugin := grpc.NewPlugin("output",
-		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromConsumer(NewOutput())),
+		grpc.WithPluginImplementation(pluginapi.NewConsumer(NewOutput())),
 	)
 	plugin.Serve()
 }

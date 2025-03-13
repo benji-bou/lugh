@@ -111,7 +111,7 @@ func (wh Docker) Work(ctx context.Context, input []byte, yield func([]byte) erro
 func main() {
 	helper.SetLog(slog.LevelDebug, false)
 	plugin := grpc.NewPlugin("docker",
-		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromWorker(NewDocker())),
+		grpc.WithPluginImplementation(pluginapi.NewWorker(NewDocker())),
 	)
 	plugin.Serve()
 }

@@ -92,7 +92,7 @@ func (mp *MartianPlugin) Produce(ctx context.Context, yield func(elem []byte) er
 func main() {
 	helper.SetLog(slog.LevelWarn, true)
 	plugin := grpc.NewPlugin("martianProxy",
-		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromProducer(NewMartianPlugin())),
+		grpc.WithPluginImplementation(pluginapi.NewProducer(NewMartianPlugin())),
 	)
 	plugin.Serve()
 }

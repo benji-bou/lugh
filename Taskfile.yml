@@ -34,6 +34,13 @@ tasks:
     cmds:
       - go mod tidy
 
+  build_all:
+    desc: Build everything
+    cmds:
+      - task: protobuf
+      - task: build
+      - task: build_plugins
+
   build:
     desc: Build the main CLI
     deps:

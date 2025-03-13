@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"log"
 	"log/slog"
 	"os"
 	"os/signal"
 
+	"github.com/benji-bou/diwo"
 	"github.com/benji-bou/lugh/core/graph"
 	"github.com/benji-bou/lugh/core/plugins/grpc"
 	"github.com/benji-bou/lugh/core/template"
@@ -36,11 +38,16 @@ func main() {
 				Usage:   "directory path of the plugins",
 				Value:   "~/.lugh/plugins",
 			},
+			&cli.StringFlag{
+				Name:    "raw-input",
+				Aliases: []string{"i"},
+				Usage:   "raw input to pass to the pipeline",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			defer grpc.CleanupClients()
 
-			helper.SetLog(slog.LevelWarn, false)
+			helper.SetLog(slog.LevelDebug, false)
 			if c.IsSet("draw-graph-only") {
 				return DrawGraphOnly(c)
 			}
@@ -58,9 +65,7 @@ func DrawGraphOnly(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
 	g := graph.NewIO(graph.WithVertices(tpl.WorkerVertexIterator(c.String("plugins-path"))))
-
 	return g.DrawGraph(c.String("draw-graph-only"))
 }
 
@@ -72,6 +77,7 @@ func RunTemplate(c *cli.Context) error {
 		return err
 	}
 	g := graph.NewIO(graph.WithVertices(tpl.WorkerVertexIterator(c.String("plugins-path"))))
+	InitializeRawInput(c, g)
 	errC := g.Run(graph.NewContext(context.Background()))
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, os.Interrupt)
@@ -86,4 +92,35 @@ func RunTemplate(c *cli.Context) error {
 			return nil
 		}
 	}
+}
+
+func InitializeRawInput(c *cli.Context, g *graph.IO[[]byte]) {
+	g.SetInput(diwo.New(func(iC chan<- []byte) {
+		if c.IsSet("raw-input") {
+			slog.Debug("sending raw input")
+			iC <- []byte(c.String("raw-input"))
+		}
+		fi, err := os.Stdin.Stat()
+		if err != nil {
+			slog.Warn("couldn't stat stdin", "error", err)
+			return
+		}
+		if fi.Mode()&os.ModeCharDevice == 0 && fi.Mode()&os.ModeNamedPipe == 0 {
+			return
+		}
+		scanner := bufio.NewScanner(os.Stdin)
+		slog.Debug("reading from stdin")
+		// Loop until stdin is closed
+		for scanner.Scan() {
+			// Read each line from stdin
+			line := scanner.Text()
+			if line != "" {
+				iC <- []byte(line)
+			}
+		}
+		// Check for any errors encountered during scanning
+		if err := scanner.Err(); err != nil {
+			slog.Warn("Error reading from stdin", "error", err)
+		}
+	}))
 }

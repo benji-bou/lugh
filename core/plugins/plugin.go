@@ -6,6 +6,7 @@ import (
 
 	"github.com/benji-bou/lugh/core/plugins/grpc"
 	"github.com/benji-bou/lugh/core/plugins/pluginapi"
+	"github.com/benji-bou/lugh/core/plugins/static/fileinput"
 	"github.com/benji-bou/lugh/core/plugins/static/stdoutput"
 	"github.com/benji-bou/lugh/core/plugins/static/transform"
 )
@@ -28,11 +29,13 @@ func LoadPlugin(name string, path string, config any) (pluginapi.IOWorkerPlugina
 
 func getPlugin(name string, path string) (pluginapi.IOWorkerPluginable, error) {
 	switch name {
+	case "input", "fileinput":
+		return pluginapi.NewWorker(fileinput.New()), nil
 	case "transform":
 		t := transform.New()
-		return pluginapi.NewIOWorkerPluginFromWorker(t), nil
+		return pluginapi.NewWorker(t), nil
 	case "output", "stdoutput":
-		return pluginapi.NewIOWorkerPluginFromConsumer(stdoutput.Plugin{}), nil
+		return pluginapi.NewConsumer(stdoutput.Plugin{}), nil
 	default:
 		if path != "" {
 			return grpc.NewPlugin(name, grpc.WithPath(path)).Connect()

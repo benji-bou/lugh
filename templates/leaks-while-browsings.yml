@@ -1,0 +1,115 @@
+name: test
+description: test template
+author: bbo
+version: "0.1"
+
+stages:
+  martianProxy:
+    plugin: martianProxy
+    config:
+      cert: "../../certs/cert.pem"
+      key: "../../certs/key.pem"
+      modifier:
+        url.RegexFilter:
+          regex: http(s|):\/\/(.*\.|)monespacesante.fr\/
+          modifier:
+            output:
+          scope:
+            - request
+            - response
+  extractRequestURL:
+    parents:
+      - martianProxy
+    plugin: transform
+    config:
+     - goTemplate:
+        format: json
+        pattern: "{{ .request.url }}\n"
+  distinctURL:
+    parents:
+      - extractRequestURL
+    plugin: distinct
+
+  katana:
+    parents:
+      - distinctURL
+    plugin: katana
+
+  distinct_output:
+    parents:
+      - katana
+      - martianProxy
+    config:
+      goTemplateFilter: "{{ .request.url }}"
+    plugin: distinct
+
+  leaks:
+    parents:
+      - distinct_output
+    plugin: leaks
+
+  leaksInsert:
+    parents:
+      - leaks
+    plugin: transform
+    config:
+      - insert:
+          content: "\n"
+
+  leaks_output:
+    parents:
+      - leaksInsert
+    plugin: rawfile
+    config:
+      filepath: ./leaks_res.txt
+
+
+  katana_output_preparation:
+    parents:
+      - katana
+    plugin: transform
+    config:
+      - goTemplate:
+          pattern: "{{ .request.url }}"
+      - insert:
+          content: "\n"
+  katana_output:
+    parents:
+      - katana_output_preparation
+    config:
+      filepath: ./katana_res.txt
+    plugin: rawfile
+
+
+  martian_output_preparation:
+    parents:
+      - martianProxy
+    plugin: transform
+    config:
+      - goTemplate:
+          pattern: "{{ .request.url }}"
+      - insert:
+          content: "\n"
+  martian_output:
+    parents:
+      - martian_output_preparation
+    config:
+      filepath: ./martian_res.txt
+    plugin: rawfile
+
+  consolidated_output_preparation:
+    parents:
+      - katana
+      - martianProxy
+    plugin: transform
+    config:
+      - insert:
+          content: "\n"
+
+
+  consolidated_output:
+    parents:
+      - consolidated_output_preparation
+    config:
+      filepath: ./consolidated_res.txt
+    plugin: rawfile

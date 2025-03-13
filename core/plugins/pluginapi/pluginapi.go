@@ -39,18 +39,18 @@ type ioWorker struct {
 	graph.IOWorker[[]byte]
 }
 
-func NewIOWorkerPluginFromWorker(plugin WorkerPluginable) ioWorker {
+func NewWorker(plugin WorkerPluginable) ioWorker {
 	return ioWorker{plugin, graph.NewIOWorkerFromWorker(plugin)}
 }
 
-func NewIOWorkerPluginFromRunner(plugin RunnerIOPluginable) ioWorker {
+func NewRunner(plugin RunnerIOPluginable) ioWorker {
 	return ioWorker{plugin, graph.NewIOWorkerFromRunner(plugin)}
 }
 
-func NewIOWorkerPluginFromProducer(plugin ProducerIOPluginable) ioWorker {
+func NewProducer(plugin ProducerIOPluginable) ioWorker {
 	return ioWorker{plugin, graph.NewIOWorkerFromProducer(plugin)}
 }
 
-func NewIOWorkerPluginFromConsumer(plugin ConsumerIOPluginable) ioWorker {
+func NewConsumer(plugin ConsumerIOPluginable) ioWorker {
 	return ioWorker{plugin, graph.NewIOWorkerFromConsumer(plugin)}
 }

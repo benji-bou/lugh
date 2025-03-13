@@ -3,13 +3,7 @@ description: osint
 author: bbo
 version: "0.1"
 stages:
-  inputName:
-    plugin: rawinput
-    config:
-      data: "bouachour.benjamin@gmail.com"
   generateHoleheCli:
-    parents:
-      - inputName
     plugin: transform
     config:
       - goTemplate:
@@ -26,4 +20,6 @@ stages:
   outputHolehe:
     parents:
       - holehe
-    plugin: output
+    config:
+      filepath: ./holehe_res.txt
+    plugin: rawfile

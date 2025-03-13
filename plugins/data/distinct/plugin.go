@@ -47,6 +47,7 @@ func (*MemFilter) GetInputSchema() ([]byte, error) {
 }
 
 func (mp *MemFilter) Config(config []byte) error {
+	slog.Debug("config", "configuration", string(config))
 	configFilter := struct {
 		GoTemplateFilter string `json:"goTemplateFilter"`
 	}{}
@@ -58,6 +59,7 @@ func (mp *MemFilter) Config(config []byte) error {
 	if err != nil {
 		return fmt.Errorf("couldn't generate Distinct go template pattern because %w", err)
 	}
+	slog.Debug("config done", "template", configFilter.GoTemplateFilter)
 	mp.goTemplateFilter = tpl
 	return nil
 }
@@ -66,17 +68,20 @@ func (mp *MemFilter) Work(_ context.Context, input []byte, yield func(elem []byt
 	slog.Debug("received data", "data", string(input))
 	buff := &bytes.Buffer{}
 	if mp.goTemplateFilter != nil {
+		slog.Debug("will excute template")
 		err := mp.goTemplateFilter.Execute(buff, string(input))
 		if err != nil {
 			return fmt.Errorf("couldn't execute Distinct go template pattern because %w", err)
 		}
 	}
 	if buff.Len() == 0 {
+		slog.Debug("template execution result len == 0 directly write input to buff")
 		buff.Write(input)
 	}
 
 	hash := sha256.Sum256(buff.Bytes())
 	if _, exists := mp.inmem[hash]; exists {
+		slog.Debug("generated hash already exists", "hash", hash)
 		return nil
 	}
 	if len(mp.inmem) >= mp.buffSizeMax && mp.buffSizeMax > 0 {
@@ -86,13 +91,14 @@ func (mp *MemFilter) Work(_ context.Context, input []byte, yield func(elem []byt
 		}
 	}
 	mp.inmem[hash] = struct{}{}
+	slog.Debug("yield value  hash does not exists", "hash", hash)
 	return yield(input)
 }
 
 func main() {
-	helper.SetLog(slog.LevelError, true)
+	helper.SetLog(slog.LevelDebug, true)
 	plugin := grpc.NewPlugin("distinct",
-		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromWorker(NewMemFilter())),
+		grpc.WithPluginImplementation(pluginapi.NewWorker(NewMemFilter())),
 	)
 	plugin.Serve()
 }

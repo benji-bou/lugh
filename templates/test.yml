@@ -7,8 +7,8 @@ stages:
   martianProxy:
     plugin: martianProxy
     config:
-      cert: "../../../../certs/cert.pem"
-      key: "../../../../certs/key.pem"
+      cert: "/Users/benjamin/Private/Projects/Lugh/certs/cert.pem"
+      key: "/Users/benjamin/Private/Projects/Lugh/certs/key.pem"
       modifier:
         url.RegexFilter:
           regex: http(s|):\/\/(.*\.|)bioserenity\.cloud

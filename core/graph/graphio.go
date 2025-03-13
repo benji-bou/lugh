@@ -16,7 +16,7 @@ import (
 
 var ErrIsRunning = errors.New("operation not permited while graph is running")
 
-type IOGraph[K any] struct {
+type IO[K any] struct {
 	GraphSelfDescribe[string, IOWorkerVertex[K]]
 	isRunning     bool
 	innerCancelFn context.CancelFunc
@@ -24,7 +24,7 @@ type IOGraph[K any] struct {
 }
 
 func WithVertices[K any](it iter.Seq[IOWorkerVertex[K]]) IOGraphOption[K] {
-	return func(configure *IOGraph[K]) {
+	return func(configure *IO[K]) {
 		err := configure.AddVertices(it)
 		if err != nil {
 			slog.Warn("failed to add IOWorkerVertex iterator", "error", err)
@@ -32,10 +32,10 @@ func WithVertices[K any](it iter.Seq[IOWorkerVertex[K]]) IOGraphOption[K] {
 	}
 }
 
-type IOGraphOption[K any] func(*IOGraph[K])
+type IOGraphOption[K any] func(*IO[K])
 
-func NewIO[K any](opt ...IOGraphOption[K]) *IOGraph[K] {
-	sg := &IOGraph[K]{}
+func NewIO[K any](opt ...IOGraphOption[K]) *IO[K] {
+	sg := &IO[K]{}
 	sg.GraphSelfDescribe = GraphSelfDescribe[string, IOWorkerVertex[K]]{New(func(spp IOWorkerVertex[K]) string {
 		return spp.GetName()
 	}, graph.Directed())}
@@ -47,14 +47,14 @@ func NewIO[K any](opt ...IOGraphOption[K]) *IOGraph[K] {
 	return sg
 }
 
-func (*IOGraph[K]) MergeVertexOutput(vertices iter.Seq[IOWorker[K]]) <-chan K {
+func (*IO[K]) MergeVertexOutput(vertices iter.Seq[IOWorker[K]]) <-chan K {
 	resC := helper.IterMap(vertices, func(vertex IOWorker[K]) <-chan K {
 		return vertex.Output()
 	})
 	return diwo.Merge(slices.Collect(resC)...)
 }
 
-func (sg *IOGraph[K]) initialize() error {
+func (sg *IO[K]) initialize() error {
 	slog.Debug("Initializing graph")
 	parentsMap, err := sg.PredecessorVertices()
 	if err != nil {
@@ -95,7 +95,7 @@ func (sg *IOGraph[K]) initialize() error {
 	return nil
 }
 
-func (sg *IOGraph[K]) start(ctx context.Context) <-chan error {
+func (sg *IO[K]) start(ctx context.Context) <-chan error {
 	ctxSync := NewContext(ctx)
 	vertexMap, _ := sg.AdjacencyMap()
 	if len(vertexMap) == 0 {
@@ -119,7 +119,7 @@ func (sg *IOGraph[K]) start(ctx context.Context) <-chan error {
 
 // IOWorker Implementation
 
-func (sg *IOGraph[K]) Run(ctx SyncContext) <-chan error {
+func (sg *IO[K]) Run(ctx SyncContext) <-chan error {
 	defer func() {
 		sg.isRunning = true
 	}()
@@ -132,7 +132,7 @@ func (sg *IOGraph[K]) Run(ctx SyncContext) <-chan error {
 	return sg.start(innerCtx)
 }
 
-func (sg *IOGraph[K]) SetInput(inputC <-chan K) {
+func (sg *IO[K]) SetInput(inputC <-chan K) {
 	defer func() {
 		sg.hasInputSet = true
 	}()
@@ -144,7 +144,7 @@ func (sg *IOGraph[K]) SetInput(inputC <-chan K) {
 	}
 }
 
-func (sg *IOGraph[K]) Output() <-chan K {
+func (sg *IO[K]) Output() <-chan K {
 	iterChildless := slices.Collect(
 		helper.IterMap(
 			sg.IterChildlessVertex(),
@@ -158,26 +158,26 @@ func (sg *IOGraph[K]) Output() <-chan K {
 
 // Closer Implementation
 
-func (sg *IOGraph[K]) Close() error {
+func (sg *IO[K]) Close() error {
 	sg.innerCancelFn()
 	sg.isRunning = false
 	return nil
 }
 
-func (sg *IOGraph[K]) CloneFromEdge(edge ...graph.Edge[string]) (*IOGraph[K], error) {
+func (sg *IO[K]) CloneFromEdge(edge ...graph.Edge[string]) (*IO[K], error) {
 	mewG, err := sg.GraphSelfDescribe.CloneFromEdge(edge...)
 	if err != nil {
 		return nil, fmt.Errorf("error cloning inner graph: %w", err)
 	}
-	return &IOGraph[K]{GraphSelfDescribe: *mewG}, nil
+	return &IO[K]{GraphSelfDescribe: *mewG}, nil
 }
 
-func (sg *IOGraph[K]) Split() ([]*IOGraph[K], error) {
+func (sg *IO[K]) Split() ([]*IO[K], error) {
 	splittedEdges, err := sg.SplitEdges()
 	if err != nil {
 		return nil, fmt.Errorf("failed to split graph %w", err)
 	}
-	res := make([]*IOGraph[K], 0, len(splittedEdges))
+	res := make([]*IO[K], 0, len(splittedEdges))
 	for _, edges := range splittedEdges {
 		newG, err := sg.CloneFromEdge(edges...)
 		if err != nil {

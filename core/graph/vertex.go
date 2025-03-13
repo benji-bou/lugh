@@ -112,16 +112,21 @@ func NewIOWorkerFromWorker[K any](worker Worker[K]) IOWorker[K] {
 func (s *syncWorker[K]) Run(ctx SyncContext) <-chan error {
 	ctx.Initializing()
 	return diwo.New(func(errC chan<- error) {
+		workerCtx, workerCancel := context.WithCancel(ctx)
 		typeName := reflect.TypeOf(s.worker)
 		slog.Debug("start", "object", "syncWorker", "function", "Run", "name", typeName)
 		defer func() {
 			slog.Debug("end, output close", "object", "syncWorker", "function", "Run", "name", typeName)
+			defer workerCancel()
 			close(s.outputC)
 		}()
 		ctx.Initialized()
 		for data := range s.inputC {
 			slog.Debug("received data start work", "data", data, "object", "syncWorker", "function", "Run", "name", typeName)
-			err := s.worker.Work(ctx, data, func(elem K) error {
+			err := s.worker.Work(workerCtx, data, func(elem K) error {
+				if workerCtx.Err() != nil {
+					return workerCtx.Err()
+				}
 				s.outputC <- elem
 				return nil
 			})
@@ -179,10 +184,7 @@ func NewIOWorkerFromConsumer[K any](consumer Consumer[K]) IOWorker[K] {
 func (c *consumerWorker[K]) Run(ctx SyncContext) <-chan error {
 	ctx.Initializing()
 	return diwo.New(func(eC chan<- error) {
-		// Do not close(c.outputC) even if not output will ever be sent.
-		// Because the GRPC Client won't send any data to plugin that don't produce data back
-		// Closing outputC means closing the output grpc stream. Informing client that
-		// no more data will be sent anymore
+		defer close(c.outputC)
 		ctx.Initialized()
 		err := c.consumer.Consume(ctx, c.inputC)
 		if err != nil {

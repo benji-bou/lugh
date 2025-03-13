@@ -47,7 +47,7 @@ func (ri RawInput) Produce(_ context.Context, yield func(elem []byte) error) err
 func main() {
 	helper.SetLog(slog.LevelDebug, false)
 	plugin := grpc.NewPlugin("rawInput",
-		grpc.WithPluginImplementation(pluginapi.NewIOWorkerPluginFromProducer(NewRawInput())),
+		grpc.WithPluginImplementation(pluginapi.NewProducer(NewRawInput())),
 	)
 	plugin.Serve()
 }
