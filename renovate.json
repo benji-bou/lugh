@@ -13,4 +13,9 @@
       "automerge": true
     }
   ]
+  "rangeStrategy": "pin",
+  "ignorePaths": [],
+  "packageRules": [{
+    "automerge": true
+  }]
 }
