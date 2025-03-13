@@ -12,10 +12,7 @@
       "matchCurrentVersion": "!/^0/",
       "automerge": true
     }
-  ]
+  ],
   "rangeStrategy": "pin",
-  "ignorePaths": [],
-  "packageRules": [{
-    "automerge": true
-  }]
+  "ignorePaths": []
 }
