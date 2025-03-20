@@ -29,6 +29,7 @@ func handleGRPCStreamError(err error, name string) error {
 func closeStream(stream grpc.ClientStream, name string) error {
 	err := stream.CloseSend()
 	if err != nil {
+		slog.Error("failed to close client stream", "error", err, "name", name)
 		return fmt.Errorf("failed to close client stream named %s: %w", name, err)
 	}
 	return nil

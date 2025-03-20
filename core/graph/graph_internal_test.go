@@ -28,7 +28,7 @@ func TestInitialize(t *testing.T) {
 	t.Run("SetInput on worker", func(t *testing.T) {
 		inputWorker := make(chan int)
 		forwardWorker.SetInput(inputWorker)
-		err := g.initialize()
+		err := g.piping()
 		if err != nil {
 			t.Errorf("Initialize graph failed %s", err.Error())
 		}
@@ -43,7 +43,7 @@ func TestInitialize(t *testing.T) {
 	t.Run("SetInput on graph", func(t *testing.T) {
 		inputgraph := make(chan int)
 		g.SetInput(inputgraph)
-		err := g.initialize()
+		err := g.piping()
 		if err != nil {
 			t.Errorf("Initialize graph failed %s", err.Error())
 		}
@@ -52,7 +52,7 @@ func TestInitialize(t *testing.T) {
 			t.Errorf("Get vertex failed %s", err.Error())
 			return
 		}
-		workerInputC := forward.(*DefaultIOWorkerVertex[int]).IOWorker.(*syncWorker[int]).inputC
+		workerInputC := forward.(*DefaultIOWorkerVertex[int]).IOWorker.(*BroadcasterIOWorker[int]).IOWorker.(*syncWorker[int]).inputC
 
 		select {
 		case _, ok := <-inputgraph:

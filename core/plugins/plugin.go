@@ -37,9 +37,16 @@ func getPlugin(name string, path string) (pluginapi.IOWorkerPluginable, error) {
 	case "output", "stdoutput":
 		return pluginapi.NewConsumer(stdoutput.Plugin{}), nil
 	default:
+		var err error
+		var runner pluginapi.RunnerIOPluginable
 		if path != "" {
-			return grpc.NewPlugin(name, grpc.WithPath(path)).Connect()
+			runner, err = grpc.NewPlugin(name, grpc.WithPath(path)).Connect()
+		} else {
+			runner, err = grpc.NewPlugin(name).Connect()
 		}
-		return grpc.NewPlugin(name).Connect()
+		if err != nil {
+			return nil, err
+		}
+		return pluginapi.NewRunner(runner), nil
 	}
 }

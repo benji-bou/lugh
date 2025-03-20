@@ -44,7 +44,7 @@ func (mp *Shell) Config(conf []byte) error {
 	return nil
 }
 
-func (*Shell) handleCmdOutput(outputCmd io.ReadCloser, yield func(elem []byte) error) (err error) {
+func (*Shell) handleCmdOutput(outputCmd io.ReadCloser, yield func(elem []byte, err error) error) (err error) {
 	defer func(outputCmd io.ReadCloser) {
 		err = outputCmd.Close()
 		if err != nil {
@@ -56,9 +56,10 @@ func (*Shell) handleCmdOutput(outputCmd io.ReadCloser, yield func(elem []byte) e
 		line := scanner.Bytes()
 		if len(line) > 0 {
 			slog.Debug("shell output reader", "value", line)
-			err := yield(line)
+			err := yield(line, nil)
 			if err != nil {
 				slog.Error("yield output failed", "error", err)
+				return err
 			}
 		}
 	}
@@ -93,7 +94,7 @@ func (*Shell) handleCmdInput(ctx context.Context, inputCmd io.WriteCloser, input
 	}
 }
 
-func (mp *Shell) Run(ctx context.Context, input <-chan []byte, yield func(elem []byte) error) (err error) {
+func (mp *Shell) Run(ctx context.Context, input <-chan []byte, yield func(elem []byte, err error) error) (err error) {
 	cmd := exec.Command(mp.cmd, mp.args...) // #nosec G204
 	inputCmd, err := cmd.StdinPipe()
 	if err != nil {
@@ -114,7 +115,7 @@ func (mp *Shell) Run(ctx context.Context, input <-chan []byte, yield func(elem [
 			err = fmt.Errorf("wait for cmd failed %w", err)
 		}
 	}(cmd)
-	go func(outputCmd io.ReadCloser, yield func(elem []byte) error) {
+	go func(outputCmd io.ReadCloser, yield func(elem []byte, err error) error) {
 		err := mp.handleCmdOutput(outputCmd, yield)
 		if err != nil {
 			slog.Error("Run output error", "error", err)

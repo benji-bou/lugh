@@ -3,7 +3,6 @@ package template
 import (
 	"fmt"
 	"iter"
-	"log/slog"
 	"os"
 
 	"github.com/benji-bou/lugh/core/graph"
@@ -56,7 +55,6 @@ func (t Template[S]) WorkerVertexIterator(defaultPluginsPath string) iter.Seq[gr
 	return func(yield func(graph.IOWorkerVertex[[]byte]) bool) {
 		for name, rawStage := range t.Stages {
 			worker := rawStage.LoadPlugin(name, defaultPluginsPath)
-			slog.Debug("vertex", "name", worker.GetName(), "parents", worker.GetParents())
 			if worker != nil {
 				if !yield(worker) {
 					return

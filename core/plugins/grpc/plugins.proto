@@ -18,6 +18,12 @@ message DataStream {
   int64 totalLen = 5;
 }
 
+
+message RunStream {
+  DataStream data = 1;
+  Error error = 2;
+}
+
 message Empty {}
 
 message Error {
@@ -28,7 +34,5 @@ message Error {
 service IOWorkerPlugins {
   rpc GetInputSchema(Empty) returns (InputSchema);
   rpc Config(RunInputConfig)   returns (Empty);
-  rpc Input(stream DataStream)   returns (Empty);
-  rpc Output(Empty)  returns (stream DataStream);
-  rpc Run(Empty)  returns (stream Error);
+  rpc Run(stream DataStream)  returns (stream RunStream);
 }

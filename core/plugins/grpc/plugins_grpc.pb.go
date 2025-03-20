@@ -21,8 +21,6 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	IOWorkerPlugins_GetInputSchema_FullMethodName = "/grpc.IOWorkerPlugins/GetInputSchema"
 	IOWorkerPlugins_Config_FullMethodName         = "/grpc.IOWorkerPlugins/Config"
-	IOWorkerPlugins_Input_FullMethodName          = "/grpc.IOWorkerPlugins/Input"
-	IOWorkerPlugins_Output_FullMethodName         = "/grpc.IOWorkerPlugins/Output"
 	IOWorkerPlugins_Run_FullMethodName            = "/grpc.IOWorkerPlugins/Run"
 )
 
@@ -32,9 +30,7 @@ const (
 type IOWorkerPluginsClient interface {
 	GetInputSchema(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*InputSchema, error)
 	Config(ctx context.Context, in *RunInputConfig, opts ...grpc.CallOption) (*Empty, error)
-	Input(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[DataStream, Empty], error)
-	Output(ctx context.Context, in *Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[DataStream], error)
-	Run(ctx context.Context, in *Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Error], error)
+	Run(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[DataStream, RunStream], error)
 }
 
 type iOWorkerPluginsClient struct {
@@ -65,56 +61,18 @@ func (c *iOWorkerPluginsClient) Config(ctx context.Context, in *RunInputConfig, 
 	return out, nil
 }
 
-func (c *iOWorkerPluginsClient) Input(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[DataStream, Empty], error) {
+func (c *iOWorkerPluginsClient) Run(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[DataStream, RunStream], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &IOWorkerPlugins_ServiceDesc.Streams[0], IOWorkerPlugins_Input_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &IOWorkerPlugins_ServiceDesc.Streams[0], IOWorkerPlugins_Run_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[DataStream, Empty]{ClientStream: stream}
+	x := &grpc.GenericClientStream[DataStream, RunStream]{ClientStream: stream}
 	return x, nil
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type IOWorkerPlugins_InputClient = grpc.ClientStreamingClient[DataStream, Empty]
-
-func (c *iOWorkerPluginsClient) Output(ctx context.Context, in *Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[DataStream], error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &IOWorkerPlugins_ServiceDesc.Streams[1], IOWorkerPlugins_Output_FullMethodName, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &grpc.GenericClientStream[Empty, DataStream]{ClientStream: stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type IOWorkerPlugins_OutputClient = grpc.ServerStreamingClient[DataStream]
-
-func (c *iOWorkerPluginsClient) Run(ctx context.Context, in *Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Error], error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &IOWorkerPlugins_ServiceDesc.Streams[2], IOWorkerPlugins_Run_FullMethodName, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &grpc.GenericClientStream[Empty, Error]{ClientStream: stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type IOWorkerPlugins_RunClient = grpc.ServerStreamingClient[Error]
+type IOWorkerPlugins_RunClient = grpc.BidiStreamingClient[DataStream, RunStream]
 
 // IOWorkerPluginsServer is the server API for IOWorkerPlugins service.
 // All implementations must embed UnimplementedIOWorkerPluginsServer
@@ -122,9 +80,7 @@ type IOWorkerPlugins_RunClient = grpc.ServerStreamingClient[Error]
 type IOWorkerPluginsServer interface {
 	GetInputSchema(context.Context, *Empty) (*InputSchema, error)
 	Config(context.Context, *RunInputConfig) (*Empty, error)
-	Input(grpc.ClientStreamingServer[DataStream, Empty]) error
-	Output(*Empty, grpc.ServerStreamingServer[DataStream]) error
-	Run(*Empty, grpc.ServerStreamingServer[Error]) error
+	Run(grpc.BidiStreamingServer[DataStream, RunStream]) error
 	mustEmbedUnimplementedIOWorkerPluginsServer()
 }
 
@@ -141,13 +97,7 @@ func (UnimplementedIOWorkerPluginsServer) GetInputSchema(context.Context, *Empty
 func (UnimplementedIOWorkerPluginsServer) Config(context.Context, *RunInputConfig) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Config not implemented")
 }
-func (UnimplementedIOWorkerPluginsServer) Input(grpc.ClientStreamingServer[DataStream, Empty]) error {
-	return status.Errorf(codes.Unimplemented, "method Input not implemented")
-}
-func (UnimplementedIOWorkerPluginsServer) Output(*Empty, grpc.ServerStreamingServer[DataStream]) error {
-	return status.Errorf(codes.Unimplemented, "method Output not implemented")
-}
-func (UnimplementedIOWorkerPluginsServer) Run(*Empty, grpc.ServerStreamingServer[Error]) error {
+func (UnimplementedIOWorkerPluginsServer) Run(grpc.BidiStreamingServer[DataStream, RunStream]) error {
 	return status.Errorf(codes.Unimplemented, "method Run not implemented")
 }
 func (UnimplementedIOWorkerPluginsServer) mustEmbedUnimplementedIOWorkerPluginsServer() {}
@@ -207,34 +157,12 @@ func _IOWorkerPlugins_Config_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
-func _IOWorkerPlugins_Input_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(IOWorkerPluginsServer).Input(&grpc.GenericServerStream[DataStream, Empty]{ServerStream: stream})
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type IOWorkerPlugins_InputServer = grpc.ClientStreamingServer[DataStream, Empty]
-
-func _IOWorkerPlugins_Output_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(Empty)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(IOWorkerPluginsServer).Output(m, &grpc.GenericServerStream[Empty, DataStream]{ServerStream: stream})
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type IOWorkerPlugins_OutputServer = grpc.ServerStreamingServer[DataStream]
-
 func _IOWorkerPlugins_Run_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(Empty)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(IOWorkerPluginsServer).Run(m, &grpc.GenericServerStream[Empty, Error]{ServerStream: stream})
+	return srv.(IOWorkerPluginsServer).Run(&grpc.GenericServerStream[DataStream, RunStream]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type IOWorkerPlugins_RunServer = grpc.ServerStreamingServer[Error]
+type IOWorkerPlugins_RunServer = grpc.BidiStreamingServer[DataStream, RunStream]
 
 // IOWorkerPlugins_ServiceDesc is the grpc.ServiceDesc for IOWorkerPlugins service.
 // It's only intended for direct use with grpc.RegisterService,
@@ -254,19 +182,10 @@ var IOWorkerPlugins_ServiceDesc = grpc.ServiceDesc{
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "Input",
-			Handler:       _IOWorkerPlugins_Input_Handler,
-			ClientStreams: true,
-		},
-		{
-			StreamName:    "Output",
-			Handler:       _IOWorkerPlugins_Output_Handler,
-			ServerStreams: true,
-		},
-		{
 			StreamName:    "Run",
 			Handler:       _IOWorkerPlugins_Run_Handler,
 			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "core/plugins/grpc/plugins.proto",

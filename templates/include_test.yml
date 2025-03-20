@@ -1,0 +1,15 @@
+name: include_test
+description: includetest template
+author: bbo
+version: "0.1"
+
+stages:
+  test_1:
+    include: ./templates/test.yml
+  test_2:
+    include: ./templates/test.yml
+  out:
+    parents:
+      - test_1
+      - test_2
+    plugin: stdoutput

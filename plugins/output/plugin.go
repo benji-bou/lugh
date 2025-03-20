@@ -26,21 +26,12 @@ func (Output) Config([]byte) error {
 	return nil
 }
 
-func (Output) Consume(ctx context.Context, input <-chan []byte) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case i, ok := <-input:
-			if !ok {
-				return nil
-			}
-			_, err := fmt.Printf("%s", string(i))
-			if err != nil {
-				return fmt.Errorf("output failed %w", err)
-			}
-		}
+func (Output) Consume(ctx context.Context, input []byte) error {
+	_, err := fmt.Printf("%s", string(input))
+	if err != nil {
+		return fmt.Errorf("output failed %w", err)
 	}
+	return nil
 }
 
 func main() {

@@ -16,7 +16,6 @@ stages:
           format: string
           pattern: --username {{ . }}
     config:
-      host: unix:///Users/benjamin/.orbstack/run/docker.sock
       image: blackbird:latest
   transformOutput:
     parents:

@@ -131,7 +131,7 @@ func (p *Plugin) Serve() {
 	slog.Debug("stop serving plugin", "name", p.name)
 }
 
-func (p *Plugin) Connect() (pluginapi.IOWorkerPluginable, error) {
+func (p *Plugin) Connect() (pluginapi.RunnerIOPluginable, error) {
 	log := hclog.Default().Named(p.name)
 	log.SetLevel(hclog.Debug)
 	p.client = plugin.NewClient(&plugin.ClientConfig{
@@ -153,7 +153,7 @@ func (p *Plugin) Connect() (pluginapi.IOWorkerPluginable, error) {
 		return nil, fmt.Errorf("failed to dispense plugin, %w", err)
 	}
 
-	resSec, ok := res.(pluginapi.IOWorkerPluginable)
+	resSec, ok := res.(pluginapi.RunnerIOPluginable)
 	if !ok {
 		slog.Error("failed to dispense plugin not a SecPluginable", "function", "Connect", "Object", "Plugin", "file", "grpc.go")
 		return nil, fmt.Errorf("failed to dispense plugin  not a SecPluginable")

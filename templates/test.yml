@@ -4,34 +4,15 @@ author: bbo
 version: "0.1"
 
 stages:
-  martianProxy:
-    plugin: martianProxy
+  test:
+    plugin: rawfile
     config:
-      cert: "/Users/benjamin/Private/Projects/Lugh/certs/cert.pem"
-      key: "/Users/benjamin/Private/Projects/Lugh/certs/key.pem"
-      modifier:
-        url.RegexFilter:
-          regex: http(s|):\/\/(.*\.|)bioserenity\.cloud
-          modifier:
-            output:
-          scope:
-            - request
-            - response
-  extractRequestURL:
-    parents:
-      - martianProxy
+      filepath: test.txt
+  out:
+    plugin: stdoutput
+  trasform:
     plugin: transform
     config:
-     - goTemplate:
-        format: json
-        pattern: "{{ .request.url }}\n"
-  distinctURL:
-    parents:
-      - extractRequestURL
-    plugin: distinct
-  martian_output:
-    parents:
-      - distinctURL
-    config:
-      filepath: ./martian_res.txt
-    plugin: rawfile
+      - goTemplate:
+          format: string
+          pattern: "{{.}}"

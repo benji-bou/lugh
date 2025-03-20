@@ -15,16 +15,7 @@ func (Plugin) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
-func (Plugin) Consume(ctx context.Context, input <-chan []byte) error {
-	for {
-		select {
-		case i := <-input:
-			_, err := fmt.Printf("%s\n", string(i))
-			if err != nil {
-				return err
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
+func (Plugin) Consume(_ context.Context, input []byte) error {
+	_, err := fmt.Printf("%s\n", string(input))
+	return err
 }

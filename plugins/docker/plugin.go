@@ -83,7 +83,12 @@ func (wh Docker) Work(ctx context.Context, input []byte, yield func([]byte) erro
 		if err != nil {
 			return fmt.Errorf("docker plugin wait container failed %w", err)
 		}
-	case <-statusCh:
+	case resp := <-statusCh:
+		if resp.Error != nil {
+			return fmt.Errorf("docker plugin wait container failed %s", resp.Error.Message)
+		}
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 	slog.Debug("start get container logs")
 	out, err := cli.ContainerLogs(ctx, resp.ID, container.LogsOptions{ShowStdout: true})

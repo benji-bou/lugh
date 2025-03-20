@@ -159,12 +159,12 @@ func TestWorkerChain[K any](t *testing.T, testConfig WorkerConfigTest[K]) {
 	inputTestC, outputTestC, errC := testConfig.IO()
 	dataTest := testConfig.DataTest
 	t.Run(testConfig.Name, func(t *testing.T) {
+		go testConfig.Assert(t, testConfig.ExpectedOutput, outputTestC, errC)
 		go func() {
 			for _, data := range dataTest {
 				inputTestC <- data
 			}
 			close(inputTestC)
 		}()
-		testConfig.Assert(t, testConfig.ExpectedOutput, outputTestC, errC)
 	})
 }

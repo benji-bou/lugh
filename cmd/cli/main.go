@@ -2,22 +2,25 @@ package main
 
 import (
 	"bufio"
-	"context"
 	"log"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 
-	"github.com/benji-bou/diwo"
 	"github.com/benji-bou/lugh/core/graph"
 	"github.com/benji-bou/lugh/core/plugins/grpc"
 	"github.com/benji-bou/lugh/core/template"
 	"github.com/benji-bou/lugh/helper"
 
 	"github.com/urfave/cli/v2"
+
+	_ "net/http/pprof"
 )
 
 func main() {
+	runtime.SetBlockProfileRate(1)
 	app := &cli.App{
 		Name:  "lugh",
 		Usage: "lugh can be use to construct cyber security pipeline based on modules",
@@ -54,6 +57,9 @@ func main() {
 			return RunTemplate(c)
 		},
 	}
+	go func() {
+		http.ListenAndServe(":8081", nil)
+	}()
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
 	}
@@ -77,8 +83,12 @@ func RunTemplate(c *cli.Context) error {
 		return err
 	}
 	g := graph.NewIO(graph.WithVertices(tpl.WorkerVertexIterator(c.String("plugins-path"))))
-	InitializeRawInput(c, g)
-	errC := g.Run(graph.NewContext(context.Background()))
+	inputC := make(chan []byte)
+	g.SetInput(inputC)
+	ctx := graph.NewContext(c.Context)
+	errC := g.Run(ctx)
+	ctx.Synchronize()
+	go SendRawInput(c, inputC)
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, os.Interrupt)
 	for {
@@ -94,33 +104,33 @@ func RunTemplate(c *cli.Context) error {
 	}
 }
 
-func InitializeRawInput(c *cli.Context, g *graph.IO[[]byte]) {
-	g.SetInput(diwo.New(func(iC chan<- []byte) {
-		if c.IsSet("raw-input") {
-			slog.Debug("sending raw input")
-			iC <- []byte(c.String("raw-input"))
+func SendRawInput(c *cli.Context, inputC chan []byte) {
+	defer close(inputC)
+	if c.IsSet("raw-input") {
+		slog.Debug("sending raw input")
+		inputC <- []byte(c.String("raw-input"))
+		slog.Debug("raw input sent")
+	}
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		slog.Warn("couldn't stat stdin", "error", err)
+		return
+	}
+	if fi.Mode()&os.ModeCharDevice == 0 || fi.Mode()&os.ModeNamedPipe == 0 {
+		return
+	}
+	scanner := bufio.NewScanner(os.Stdin)
+	slog.Debug("reading from stdin")
+	// Loop until stdin is closed
+	for scanner.Scan() {
+		// Read each line from stdin
+		line := scanner.Text()
+		if line != "" {
+			inputC <- []byte(line)
 		}
-		fi, err := os.Stdin.Stat()
-		if err != nil {
-			slog.Warn("couldn't stat stdin", "error", err)
-			return
-		}
-		if fi.Mode()&os.ModeCharDevice == 0 && fi.Mode()&os.ModeNamedPipe == 0 {
-			return
-		}
-		scanner := bufio.NewScanner(os.Stdin)
-		slog.Debug("reading from stdin")
-		// Loop until stdin is closed
-		for scanner.Scan() {
-			// Read each line from stdin
-			line := scanner.Text()
-			if line != "" {
-				iC <- []byte(line)
-			}
-		}
-		// Check for any errors encountered during scanning
-		if err := scanner.Err(); err != nil {
-			slog.Warn("Error reading from stdin", "error", err)
-		}
-	}))
+	}
+	// Check for any errors encountered during scanning
+	if err := scanner.Err(); err != nil {
+		slog.Warn("Error reading from stdin", "error", err)
+	}
 }

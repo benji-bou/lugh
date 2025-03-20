@@ -14,13 +14,11 @@ import (
 	"github.com/dominikbraun/graph"
 )
 
-var ErrIsRunning = errors.New("operation not permited while graph is running")
-
 type IO[K any] struct {
 	GraphSelfDescribe[string, IOWorkerVertex[K]]
-	isRunning     bool
 	innerCancelFn context.CancelFunc
-	hasInputSet   bool
+	inputC        *diwo.Broker[K]
+	outputC       <-chan K
 }
 
 func WithVertices[K any](it iter.Seq[IOWorkerVertex[K]]) IOGraphOption[K] {
@@ -54,49 +52,53 @@ func (*IO[K]) MergeVertexOutput(vertices iter.Seq[IOWorker[K]]) <-chan K {
 	return diwo.Merge(slices.Collect(resC)...)
 }
 
-func (sg *IO[K]) initialize() error {
-	slog.Debug("Initializing graph")
+func (sg *IO[K]) piping() error {
+	slog.Debug("piping: graph")
 	parentsMap, err := sg.PredecessorVertices()
 	if err != nil {
-		return fmt.Errorf("error while initializing graph: %w", err)
+		return fmt.Errorf("error while piping graph: %w", err)
 	}
 	for currentVertexHash, parentVertices := range parentsMap {
-		slog.Debug("Initializing vertex", "vertex", currentVertexHash)
+		slog.Debug("piping: vertex", "vertex", currentVertexHash)
 		currentVertex, err := sg.Vertex(currentVertexHash)
 		if err != nil {
-			slog.Error("Error while initializing graph: ", "error", err, "vertexHash", currentVertexHash)
-			return fmt.Errorf("error while initializing graph: %w", err)
+			slog.Error("Error while piping graph: ", "error", err, "vertexHash", currentVertexHash)
+			return fmt.Errorf("error while piping graph: %w", err)
 		}
-		if len(parentVertices) == 0 && sg.hasInputSet {
-			continue
-		}
-		parentsMapValuesIterator := maps.Values(parentVertices)
+		if len(parentVertices) == 0 && sg.inputC != nil {
+			slog.Debug("piping: vertex set input", "vertex", currentVertexHash, "input", "inputC")
+			currentVertex.SetInput(sg.inputC.Subscribe())
 
-		slog.Debug("Initializing vertex set input",
-			"vertex", currentVertexHash,
-			"parents", slices.Collect(
-				helper.IterMap(parentsMapValuesIterator,
-					func(elem IOWorkerVertex[K]) string {
-						return elem.GetName()
-					},
+		} else {
+			parentsMapValuesIterator := maps.Values(parentVertices)
+
+			slog.Debug("piping: vertex set input",
+				"vertex", currentVertexHash,
+				"parentsOutput", slices.Collect(
+					helper.IterMap(parentsMapValuesIterator,
+						func(elem IOWorkerVertex[K]) string {
+							return elem.GetName()
+						},
+					),
+				))
+			currentVertex.SetInput(
+				sg.MergeVertexOutput(
+					helper.IterMap(parentsMapValuesIterator,
+						func(elem IOWorkerVertex[K]) IOWorker[K] {
+							return elem
+						},
+					),
 				),
-			))
-		currentVertex.SetInput(
-			sg.MergeVertexOutput(
-				helper.IterMap(parentsMapValuesIterator,
-					func(elem IOWorkerVertex[K]) IOWorker[K] {
-						return elem
-					},
-				),
-			),
-		)
+			)
+		}
 	}
-	slog.Debug("End of initializing graph")
+	slog.Debug("piping: End of piping graph")
 	return nil
 }
 
-func (sg *IO[K]) start(ctx context.Context) <-chan error {
-	ctxSync := NewContext(ctx)
+func (sg *IO[K]) start(ctx SyncContext) <-chan error {
+	slog.Debug("start: Io Graph")
+
 	vertexMap, _ := sg.AdjacencyMap()
 	if len(vertexMap) == 0 {
 		return diwo.Once(errors.New("empty graph. No stage loaded"))
@@ -108,60 +110,47 @@ func (sg *IO[K]) start(ctx context.Context) <-chan error {
 			slog.Error("Error while start running Io Graph: ", "error", err, "vertexHash", vertexHash)
 			continue
 		}
-		slog.Debug("Starting run vertex", "vertex", vertexHash)
-		errorsOutputC = append(errorsOutputC, vertex.Run(ctxSync))
+		slog.Debug("start: Starting run vertex", "vertex", vertexHash)
+		errorsOutputC = append(errorsOutputC, vertex.Run(ctx))
 	}
-	slog.Debug("Wait for vertex worker synchronization")
-	ctxSync.Synchronize()
-	slog.Debug("End of starting graph")
+	slog.Debug("start: Wait for  worker synchronization")
+
+	slog.Debug("start: End of worker synchronization.")
 	return diwo.Merge(errorsOutputC...)
 }
 
-// IOWorker Implementation
-
 func (sg *IO[K]) Run(ctx SyncContext) <-chan error {
-	defer func() {
-		sg.isRunning = true
-	}()
-	innerCtx, cancelFn := context.WithCancel(ctx)
-	sg.innerCancelFn = cancelFn
-	err := sg.initialize()
+	slog.Debug("run: Io Graph")
+	err := sg.piping()
 	if err != nil {
 		return diwo.Once(err)
 	}
-	return sg.start(innerCtx)
+	return sg.start(ctx)
 }
 
+// IOWorker Implementation
 func (sg *IO[K]) SetInput(inputC <-chan K) {
-	defer func() {
-		sg.hasInputSet = true
-	}()
-	iterChildless := slices.Collect(sg.IterParentlessVertex())
-	qty := len(iterChildless)
-	inputBroadcast := diwo.Broadcast(inputC, qty)
-	for i, vertex := range iterChildless {
-		vertex.SetInput(inputBroadcast[i])
+	slog.Debug("IOGraphWorker start SetInput")
+
+	if sg.inputC == nil && inputC != nil {
+		sg.inputC = diwo.NewBroker(inputC)
 	}
+	slog.Debug("IOGraphWorker end SetInput")
 }
 
 func (sg *IO[K]) Output() <-chan K {
-	iterChildless := slices.Collect(
-		helper.IterMap(
-			sg.IterChildlessVertex(),
-			func(vertexHash IOWorkerVertex[K]) <-chan K {
-				return vertexHash.Output()
-			},
-		),
-	)
-	return diwo.Merge(iterChildless...)
-}
-
-// Closer Implementation
-
-func (sg *IO[K]) Close() error {
-	sg.innerCancelFn()
-	sg.isRunning = false
-	return nil
+	if sg.outputC == nil {
+		iterChildless := slices.Collect(
+			helper.IterMap(
+				sg.IterChildlessVertex(),
+				func(vertexHash IOWorkerVertex[K]) <-chan K {
+					return vertexHash.Output()
+				},
+			),
+		)
+		sg.outputC = diwo.Merge(iterChildless...)
+	}
+	return sg.outputC
 }
 
 func (sg *IO[K]) CloneFromEdge(edge ...graph.Edge[string]) (*IO[K], error) {

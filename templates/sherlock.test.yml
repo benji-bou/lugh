@@ -14,7 +14,6 @@ stages:
       - prepareSherlockCLI
     plugin: docker
     config:
-      host: unix:///Users/benjamin/.orbstack/run/docker.sock
       image: sherlock/sherlock:latest
   enola:
     plugin: enola

@@ -1,17 +1,21 @@
-name: test
-description: osint
+name: recon
+description: target recon
 author: bbo
 version: "0.1"
 stages:
-  prepareSubfinder:
-    plugin: transform
-    config:
-      command: subfinder -d {{.}} -silent
+  shodanx:
+    include: ./templates/shodanx.yml
   subfinder:
-    plugin: docker
-    config:
-      image: projectdiscovery/subfinder:latest
-  write:
+    include: ./templates/subfinder.yml
+  output:
     parents:
       - subfinder
+      - shodanx
     plugin: stdoutput
+  rawfile:
+    plugin: rawfile
+    parents:
+      - subfinder
+      - shodanx
+    config:
+      filepath: ./aggregate_results.txt

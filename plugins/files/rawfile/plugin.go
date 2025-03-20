@@ -27,7 +27,7 @@ func NewRawFile(opt ...RawFileOption) *RawFile {
 	return helper.ConfigurePtr(&RawFile{}, opt...)
 }
 
-func (RawFile) GetInputSchema() ([]byte, error) {
+func (*RawFile) GetInputSchema() ([]byte, error) {
 	return nil, nil
 }
 
@@ -41,7 +41,7 @@ func (mp *RawFile) Config(config []byte) error {
 	return nil
 }
 
-func (mp RawFile) Consume(_ context.Context, input <-chan []byte) error {
+func (mp *RawFile) Consume(_ context.Context, input []byte) error {
 	basePath, err := os.UserHomeDir()
 	if err != nil {
 		basePath = "./"
@@ -55,17 +55,15 @@ func (mp RawFile) Consume(_ context.Context, input <-chan []byte) error {
 		return fmt.Errorf("NewRawFile open file for  plugin failed, %w", err)
 	}
 	defer f.Close()
-	for i := range input {
-		_, err := f.Write(i)
-		if err != nil {
-			return fmt.Errorf("NewRawFile write file plugin failed, %w", err)
-		}
+	_, err = f.Write(input)
+	if err != nil {
+		return fmt.Errorf("NewRawFile write file plugin failed, %w", err)
 	}
 	return nil
 }
 
 func main() {
-	helper.SetLog(slog.LevelError, true)
+	helper.SetLog(slog.LevelDebug, false)
 	plugin := grpc.NewPlugin("rawfile",
 		grpc.WithPluginImplementation(pluginapi.NewConsumer(NewRawFile())),
 	)

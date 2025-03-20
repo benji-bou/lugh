@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	shutdownTimeout time.Duration = 10 * time.Second
+	shutdownTimeout time.Duration = 9 * time.Second
 )
 
 type RouteConfigurable interface {

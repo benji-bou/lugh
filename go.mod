@@ -2,8 +2,6 @@ module github.com/benji-bou/lugh
 
 go 1.24
 
-toolchain go1.24.1
-
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/benji-bou/diwo v0.0.8
