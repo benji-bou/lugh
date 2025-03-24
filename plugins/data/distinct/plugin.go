@@ -98,7 +98,7 @@ func (mp *MemFilter) Work(_ context.Context, input []byte, yield func(elem []byt
 func main() {
 	helper.SetLog(slog.LevelDebug, true)
 	plugin := grpc.NewPlugin("distinct",
-		grpc.WithPluginImplementation(pluginapi.NewWorker(NewMemFilter())),
+		grpc.WithPluginImplementation(pluginapi.NewConfigurableWorker(NewMemFilter())),
 	)
 	plugin.Serve()
 }

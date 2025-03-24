@@ -51,7 +51,7 @@ func main() {
 	helper.SetLog(slog.LevelDebug, true)
 
 	p := grpc.NewPlugin("leaks",
-		grpc.WithPluginImplementation(pluginapi.NewWorker(NewLeaksPlugin())),
+		grpc.WithPluginImplementation(pluginapi.NewConfigurableWorker(NewLeaksPlugin())),
 	)
 
 	p.Serve()

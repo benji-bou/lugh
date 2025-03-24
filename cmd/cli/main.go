@@ -2,12 +2,13 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 
 	"github.com/benji-bou/lugh/core/graph"
 	"github.com/benji-bou/lugh/core/plugins/grpc"
@@ -15,8 +16,6 @@ import (
 	"github.com/benji-bou/lugh/helper"
 
 	"github.com/urfave/cli/v2"
-
-	_ "net/http/pprof"
 )
 
 func main() {
@@ -46,6 +45,11 @@ func main() {
 				Aliases: []string{"i"},
 				Usage:   "raw input to pass to the pipeline",
 			},
+			&cli.StringSliceFlag{
+				Name:    "var",
+				Aliases: []string{"v"},
+				Usage:   "variable to pass to the pipeline. in the form of Key=Value",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			defer grpc.CleanupClients()
@@ -57,9 +61,6 @@ func main() {
 			return RunTemplate(c)
 		},
 	}
-	go func() {
-		http.ListenAndServe(":8081", nil)
-	}()
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
 	}
@@ -67,7 +68,7 @@ func main() {
 
 func DrawGraphOnly(c *cli.Context) error {
 	tplPath := c.String("template")
-	tpl, err := template.NewFile(tplPath)
+	tpl, err := template.NewFile(tplPath, nil)
 	if err != nil {
 		return err
 	}
@@ -77,7 +78,15 @@ func DrawGraphOnly(c *cli.Context) error {
 
 func RunTemplate(c *cli.Context) error {
 	tplPath := c.String("template")
-	tpl, err := template.NewFile(tplPath)
+	variables := make(map[string]interface{})
+	for _, v := range c.StringSlice("var") {
+		parts := strings.SplitN(v, "=", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid variable format: %s", v)
+		}
+		variables[parts[0]] = parts[1]
+	}
+	tpl, err := template.NewFile(tplPath, variables)
 	if err != nil {
 		slog.Error("failed to start template", "error", err)
 		return err

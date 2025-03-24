@@ -72,7 +72,7 @@ func (wh Enola) GetInputSchema() ([]byte, error) {
 func main() {
 	helper.SetLog(slog.LevelDebug, false)
 	plugin := grpc.NewPlugin("enola",
-		grpc.WithPluginImplementation(pluginapi.NewWorker(NewEnola())),
+		grpc.WithPluginImplementation(pluginapi.NewConfigurableWorker(NewEnola())),
 	)
 	plugin.Serve()
 }

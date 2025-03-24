@@ -9,48 +9,62 @@ type PluginConfigurer interface {
 	Config(config []byte) error
 }
 
-type IOWorkerPluginable interface {
-	PluginConfigurer
-	graph.IOWorker[[]byte]
-}
-
-type WorkerPluginable interface {
+type ConfigurableWorker interface {
 	PluginConfigurer
 	graph.Worker[[]byte]
 }
 
-type RunnerIOPluginable interface {
+type ConfigurableIORunner interface {
 	PluginConfigurer
 	graph.Runner[[]byte]
 }
 
-type ProducerIOPluginable interface {
+type ConfigurableIOProducer interface {
 	PluginConfigurer
 	graph.Producer[[]byte]
 }
 
-type ConsumerIOPluginable interface {
+type ConfigurableIOConsumer interface {
 	PluginConfigurer
 	graph.Consumer[[]byte]
 }
 
-type ioWorker struct {
+type ConfigurableIOWorker struct {
 	PluginConfigurer
 	graph.IOWorker[[]byte]
 }
 
-func NewWorker(plugin WorkerPluginable) ioWorker {
-	return ioWorker{plugin, graph.NewIOWorkerFromWorker(plugin)}
+func NewConfigurableWorker(plugin ConfigurableWorker) ConfigurableIOWorker {
+	return NewConfigurableIOWorker(graph.NewIOWorkerFromWorker(plugin), WithConfigurer(plugin))
 }
 
-func NewRunner(plugin RunnerIOPluginable) ioWorker {
-	return ioWorker{plugin, graph.NewIOWorkerFromRunner(plugin)}
+func NewConfigurableRunner(plugin ConfigurableIORunner) ConfigurableIOWorker {
+	return NewConfigurableIOWorker(graph.NewIOWorkerFromRunner(plugin), WithConfigurer(plugin))
 }
 
-func NewProducer(plugin ProducerIOPluginable) ioWorker {
-	return ioWorker{plugin, graph.NewIOWorkerFromProducer(plugin)}
+func NewConfigurableProducer(plugin ConfigurableIOProducer) ConfigurableIOWorker {
+	return NewConfigurableIOWorker(graph.NewIOWorkerFromProducer(plugin), WithConfigurer(plugin))
 }
 
-func NewConsumer(plugin ConsumerIOPluginable) ioWorker {
-	return ioWorker{plugin, graph.NewIOWorkerFromConsumer(plugin)}
+func NewConfigurableConsumer(plugin ConfigurableIOConsumer) ConfigurableIOWorker {
+	return NewConfigurableIOWorker(graph.NewIOWorkerFromConsumer(plugin), WithConfigurer(plugin))
+}
+
+type emptyConfigurer struct{}
+
+func (ec emptyConfigurer) GetInputSchema() ([]byte, error) { return nil, nil }
+func (ec emptyConfigurer) Config(config []byte) error      { return nil }
+
+func NewConfigurableIOWorker(worker graph.IOWorker[[]byte], opt ...func(*ConfigurableIOWorker)) ConfigurableIOWorker {
+	ioWorker := ConfigurableIOWorker{PluginConfigurer: emptyConfigurer{}, IOWorker: worker}
+	for _, o := range opt {
+		o(&ioWorker)
+	}
+	return ioWorker
+}
+
+func WithConfigurer(configurer PluginConfigurer) func(*ConfigurableIOWorker) {
+	return func(iw *ConfigurableIOWorker) {
+		iw.PluginConfigurer = configurer
+	}
 }

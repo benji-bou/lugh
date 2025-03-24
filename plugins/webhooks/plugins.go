@@ -69,7 +69,7 @@ func (wh *Webhook) Produce(ctx context.Context, yield func(elem []byte) error) e
 func main() {
 	helper.SetLog(slog.LevelError, true)
 	plugin := grpc.NewPlugin("webhook",
-		grpc.WithPluginImplementation(pluginapi.NewProducer(NewWebhook())),
+		grpc.WithPluginImplementation(pluginapi.NewConfigurableProducer(NewWebhook())),
 	)
 	plugin.Serve()
 }

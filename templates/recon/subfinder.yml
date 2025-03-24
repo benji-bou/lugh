@@ -15,17 +15,10 @@ stages:
     plugin: docker
     config:
       image: projectdiscovery/subfinder:latest
-  write:
-    parents:
-      - subfinder
-    plugin: rawfile
-    config:
-      filepath: ./subfinder.txt
   output:
     parents:
       - subfinder
-    plugin: transform
-    config:
-      - goTemplate:
-          format: string
-          pattern: " {{ . }}"
+    include: ./templates/helper/output.yml
+    variables:
+      raw_output:
+        filepath: ./raw_subfinder.txt

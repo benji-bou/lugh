@@ -65,7 +65,7 @@ func (mp *RawFile) Consume(_ context.Context, input []byte) error {
 func main() {
 	helper.SetLog(slog.LevelDebug, false)
 	plugin := grpc.NewPlugin("rawfile",
-		grpc.WithPluginImplementation(pluginapi.NewConsumer(NewRawFile())),
+		grpc.WithPluginImplementation(pluginapi.NewConfigurableConsumer(NewRawFile())),
 	)
 	plugin.Serve()
 }

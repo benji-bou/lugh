@@ -7,7 +7,7 @@ stages:
   test:
     plugin: rawfile
     config:
-      filepath: test.txt
+      filepath: {{ .filepath }}
   out:
     plugin: stdoutput
   trasform:
@@ -15,4 +15,4 @@ stages:
     config:
       - goTemplate:
           format: string
-          pattern: "{{.}}"
+          pattern: {{`"{{.}}"`}}

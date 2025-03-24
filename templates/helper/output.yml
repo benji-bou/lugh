@@ -1,0 +1,31 @@
+name: output
+description: generic output. This template is used to output the results of a plugin to a file and if included the results in the next stage.
+author: bbo
+version: "0.1"
+
+stages:
+{{ with .raw_output }}
+  raw_output:
+    config:
+      filepath: {{ .filepath }}
+    plugin: rawfile
+{{- end }}
+{{ with .output }}
+  output_preparation:
+    plugin: transform
+    config:
+      - goTemplate:
+          pattern: {{.pattern}}
+      - insert:
+          content: "\n"
+  output:
+    parents:
+      - output_preparation
+    config:
+      filepath: {{ .filepath }}
+    plugin: rawfile
+{{- end }}
+{{ with .is_included }}
+  include_output:
+    plugin: forward
+{{- end }}

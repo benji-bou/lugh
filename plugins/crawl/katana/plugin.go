@@ -80,7 +80,7 @@ func (mp *Katana) Work(_ context.Context, input []byte, yield func(elem []byte) 
 func main() {
 	helper.SetLog(slog.LevelError, true)
 	plugin := grpc.NewPlugin("Katana",
-		grpc.WithPluginImplementation(pluginapi.NewWorker(NewKatana())),
+		grpc.WithPluginImplementation(pluginapi.NewConfigurableWorker(NewKatana())),
 	)
 	plugin.Serve()
 }

@@ -18,7 +18,7 @@ var (
 type IOWorkerGRPCPlugin struct {
 	// GRPCPlugin must still implement the Plugin interface
 	goplugin.NetRPCUnsupportedPlugin
-	Impl pluginapi.IOWorkerPluginable
+	Impl pluginapi.ConfigurableIOWorker
 	Name string
 	// Concrete implementation, written in Go. This is only used for plugins
 	// that are written in Go.

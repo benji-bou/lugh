@@ -105,7 +105,7 @@ func WithCmdConfig(cmd *exec.Cmd) PluginOption {
 	}
 }
 
-func WithPluginImplementation(plg pluginapi.IOWorkerPluginable) PluginOption {
+func WithPluginImplementation(plg pluginapi.ConfigurableIOWorker) PluginOption {
 	return func(p *Plugin) {
 		p.plugin = IOWorkerGRPCPlugin{Impl: plg, Name: p.name}
 	}
@@ -131,7 +131,7 @@ func (p *Plugin) Serve() {
 	slog.Debug("stop serving plugin", "name", p.name)
 }
 
-func (p *Plugin) Connect() (pluginapi.RunnerIOPluginable, error) {
+func (p *Plugin) Connect() (pluginapi.ConfigurableIORunner, error) {
 	log := hclog.Default().Named(p.name)
 	log.SetLevel(hclog.Debug)
 	p.client = plugin.NewClient(&plugin.ClientConfig{
@@ -153,7 +153,7 @@ func (p *Plugin) Connect() (pluginapi.RunnerIOPluginable, error) {
 		return nil, fmt.Errorf("failed to dispense plugin, %w", err)
 	}
 
-	resSec, ok := res.(pluginapi.RunnerIOPluginable)
+	resSec, ok := res.(pluginapi.ConfigurableIORunner)
 	if !ok {
 		slog.Error("failed to dispense plugin not a SecPluginable", "function", "Connect", "Object", "Plugin", "file", "grpc.go")
 		return nil, fmt.Errorf("failed to dispense plugin  not a SecPluginable")

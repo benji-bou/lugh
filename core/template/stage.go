@@ -3,24 +3,26 @@ package template
 import (
 	"log"
 	"log/slog"
+	"maps"
 
 	"github.com/benji-bou/lugh/core/graph"
 	"github.com/benji-bou/lugh/core/plugins"
 )
 
 type Stage struct {
-	Parents    []string `yaml:"parents"`
-	PluginPath string   `yaml:"pluginPath"`
-	Plugin     string   `yaml:"plugin"`
-	Config     any      `yaml:"config"`
-	Include    string   `yaml:"include"`
+	Parents    []string               `yaml:"parents"`
+	PluginPath string                 `yaml:"pluginPath"`
+	Plugin     string                 `yaml:"plugin"`
+	Config     any                    `yaml:"config"`
+	Include    string                 `yaml:"include"`
+	Variables  map[string]interface{} `yaml:"variables"`
 }
 
-func (st Stage) LoadPlugin(name string, defaultPluginsPath string) graph.IOWorkerVertex[[]byte] {
+func (st Stage) LoadPlugin(name string, defaultPluginsPath string, variables map[string]interface{}) graph.IOWorkerVertex[[]byte] {
 	if st.PluginPath == "" {
 		st.PluginPath = defaultPluginsPath
 	}
-	if graphWorker := st.IncludeGraph(); graphWorker != nil {
+	if graphWorker := st.IncludeGraph(name, variables); graphWorker != nil {
 		return graph.NewDefaultIOWorkerVertex(name, st.Parents, graphWorker)
 	}
 
@@ -32,11 +34,16 @@ func (st Stage) LoadPlugin(name string, defaultPluginsPath string) graph.IOWorke
 	return graph.NewDefaultIOWorkerVertex(name, st.Parents, secplugin)
 }
 
-func (st Stage) IncludeGraph() graph.IOWorker[[]byte] {
+func (st Stage) IncludeGraph(parent string, variables map[string]interface{}) graph.IOWorker[[]byte] {
 	if st.Include == "" {
 		return nil
 	}
-	tpl, err := NewFile(st.Include)
+	localVariables := maps.Clone(variables)
+
+	localVariables["is_included"] = true
+	localVariables["parent"] = parent
+	maps.Copy(st.Variables, localVariables)
+	tpl, err := NewFile(st.Include, localVariables)
 	if err != nil {
 		slog.Error("failed to start template", "error", err)
 		return nil

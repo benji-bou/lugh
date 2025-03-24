@@ -26,4 +26,4 @@ stages:
           sep: "\n"
         goTemplate:
           format: string
-          pattern: "{{ trim . }}"
+          pattern: {{`"{{ trim . }}"`}}

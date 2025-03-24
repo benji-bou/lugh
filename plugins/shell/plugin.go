@@ -128,7 +128,7 @@ func (mp *Shell) Run(ctx context.Context, input <-chan []byte, yield func(elem [
 func main() {
 	helper.SetLog(slog.LevelError, true)
 	plugin := grpc.NewPlugin("shell",
-		grpc.WithPluginImplementation(pluginapi.NewRunner(NewShell())),
+		grpc.WithPluginImplementation(pluginapi.NewConfigurableRunner(NewShell())),
 	)
 	plugin.Serve()
 }
