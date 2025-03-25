@@ -223,12 +223,11 @@ func NewIOWorkerFromConsumer[K any](consumer Consumer[K]) IOWorker[K] {
 func (c *consumerWorker[K]) Run(ctx SyncContext) <-chan error {
 	ctx.Initializing()
 	slog.Debug("Consummer Initialization started", "consummer", reflect.TypeOf(c.consumer).String())
-
+	c.Close()
 	return diwo.New(func(eC chan<- error) {
 		typeConsumer := reflect.TypeOf(c.consumer).String()
 
 		defer func() {
-			c.Close()
 			slog.Debug("Consumer exited Closed output chan", "worker", typeConsumer)
 		}()
 		slog.Debug("Consumer initialized wait for sync", "consumer", typeConsumer)

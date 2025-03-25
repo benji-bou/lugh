@@ -10,10 +10,10 @@ import (
 )
 
 type Stage struct {
-	Parents    []string               `yaml:"parents"`
 	PluginPath string                 `yaml:"pluginPath"`
 	Plugin     string                 `yaml:"plugin"`
 	Config     any                    `yaml:"config"`
+	Parents    []string               `yaml:"parents"`
 	Include    string                 `yaml:"include"`
 	Variables  map[string]interface{} `yaml:"variables"`
 }
@@ -42,7 +42,9 @@ func (st Stage) IncludeGraph(parent string, variables map[string]interface{}) gr
 
 	localVariables["is_included"] = true
 	localVariables["parent"] = parent
-	maps.Copy(st.Variables, localVariables)
+	if st.Variables != nil {
+		maps.Copy(localVariables, st.Variables)
+	}
 	tpl, err := NewFile(st.Include, localVariables)
 	if err != nil {
 		slog.Error("failed to start template", "error", err)

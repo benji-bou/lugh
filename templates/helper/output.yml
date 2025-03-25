@@ -14,8 +14,11 @@ stages:
   output_preparation:
     plugin: transform
     config:
+      - split:
+          sep: {{ .sep | default "\r\n" | quote }}
       - goTemplate:
-          pattern: {{.pattern}}
+          pattern: {{.pattern | default "{{.}}" | quote }}
+          format: {{ .format | default "string" }}
       - insert:
           content: "\n"
   output:

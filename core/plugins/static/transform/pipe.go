@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 	"text/template"
@@ -34,7 +35,12 @@ func (gt goTemplate) Transform(in []byte) ([][]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute template: %w", err)
 	}
-	return [][]byte{buff.Bytes()}, nil
+	res := buff.Bytes()
+	slog.Debug("Template", "input", string(in), "output", string(res))
+	if strings.Contains(gt.template.Root.Nodes[0].String(), "host") {
+		slog.Debug("Template", "input", string(in), "output", string(res))
+	}
+	return [][]byte{res}, nil
 }
 
 func WithJSONInput() goTemplateOption {

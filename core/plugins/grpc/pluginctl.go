@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/benji-bou/lugh/core/graph"
 	"github.com/benji-bou/lugh/core/plugins/pluginapi"
 	"github.com/benji-bou/lugh/helper"
 	"github.com/hashicorp/go-hclog"
@@ -105,7 +106,31 @@ func WithCmdConfig(cmd *exec.Cmd) PluginOption {
 	}
 }
 
-func WithPluginImplementation(plg pluginapi.ConfigurableIOWorker) PluginOption {
+func WithPluginProducer(plg pluginapi.Producer) PluginOption {
+	return func(p *Plugin) {
+		p.plugin = IOWorkerGRPCPlugin{Impl: graph.NewIOWorkerFromProducer(plg), Name: p.name}
+	}
+}
+
+func WithPluginConsumer(plg pluginapi.Consumer) PluginOption {
+	return func(p *Plugin) {
+		p.plugin = IOWorkerGRPCPlugin{Impl: graph.NewIOWorkerFromConsumer(plg), Name: p.name}
+	}
+}
+
+func WithPluginRunner(plg pluginapi.Runner) PluginOption {
+	return func(p *Plugin) {
+		p.plugin = IOWorkerGRPCPlugin{Impl: graph.NewIOWorkerFromRunner(plg), Name: p.name}
+	}
+}
+
+func WithPluginWorker(plg pluginapi.Worker) PluginOption {
+	return func(p *Plugin) {
+		p.plugin = IOWorkerGRPCPlugin{Impl: graph.NewIOWorkerFromWorker(plg), Name: p.name}
+	}
+}
+
+func WithPluginIOWorker(plg pluginapi.IOWorker) PluginOption {
 	return func(p *Plugin) {
 		p.plugin = IOWorkerGRPCPlugin{Impl: plg, Name: p.name}
 	}
@@ -131,7 +156,7 @@ func (p *Plugin) Serve() {
 	slog.Debug("stop serving plugin", "name", p.name)
 }
 
-func (p *Plugin) Connect() (pluginapi.ConfigurableIORunner, error) {
+func (p *Plugin) Connect() (pluginapi.Runner, error) {
 	log := hclog.Default().Named(p.name)
 	log.SetLevel(hclog.Debug)
 	p.client = plugin.NewClient(&plugin.ClientConfig{
@@ -153,7 +178,7 @@ func (p *Plugin) Connect() (pluginapi.ConfigurableIORunner, error) {
 		return nil, fmt.Errorf("failed to dispense plugin, %w", err)
 	}
 
-	resSec, ok := res.(pluginapi.ConfigurableIORunner)
+	resSec, ok := res.(pluginapi.Runner)
 	if !ok {
 		slog.Error("failed to dispense plugin not a SecPluginable", "function", "Connect", "Object", "Plugin", "file", "grpc.go")
 		return nil, fmt.Errorf("failed to dispense plugin  not a SecPluginable")

@@ -7,7 +7,6 @@ import (
 	"log/slog"
 
 	"github.com/benji-bou/lugh/core/plugins/grpc"
-	"github.com/benji-bou/lugh/core/plugins/pluginapi"
 	"github.com/benji-bou/lugh/helper"
 	"github.com/zricethezav/gitleaks/v8/detect"
 )
@@ -51,7 +50,7 @@ func main() {
 	helper.SetLog(slog.LevelDebug, true)
 
 	p := grpc.NewPlugin("leaks",
-		grpc.WithPluginImplementation(pluginapi.NewConfigurableWorker(NewLeaksPlugin())),
+		grpc.WithPluginWorker(NewLeaksPlugin()),
 	)
 
 	p.Serve()

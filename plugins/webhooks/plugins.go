@@ -8,7 +8,6 @@ import (
 	"log/slog"
 
 	"github.com/benji-bou/lugh/core/plugins/grpc"
-	"github.com/benji-bou/lugh/core/plugins/pluginapi"
 	"github.com/benji-bou/lugh/helper"
 	"github.com/labstack/echo/v4"
 )
@@ -69,7 +68,7 @@ func (wh *Webhook) Produce(ctx context.Context, yield func(elem []byte) error) e
 func main() {
 	helper.SetLog(slog.LevelError, true)
 	plugin := grpc.NewPlugin("webhook",
-		grpc.WithPluginImplementation(pluginapi.NewConfigurableProducer(NewWebhook())),
+		grpc.WithPluginProducer(NewWebhook()),
 	)
 	plugin.Serve()
 }

@@ -4,18 +4,15 @@ author: bbo
 version: "0.1"
 stages:
   shodanx:
-    include: ./templates/shodanx.yml
+    include: ./templates/recon/shodanx.yml
   subfinder:
-    include: ./templates/subfinder.yml
-  output:
+    include: ./templates/recon/subfinder.yml
+
+  urls:
+    include: ./templates/helper/output.yml
+    variables:
+      raw_output:
+        filepath: ./recon_aggregated_results.txt
     parents:
       - subfinder
       - shodanx
-    plugin: stdoutput
-  rawfile:
-    plugin: rawfile
-    parents:
-      - subfinder
-      - shodanx
-    config:
-      filepath: ./aggregate_results.txt

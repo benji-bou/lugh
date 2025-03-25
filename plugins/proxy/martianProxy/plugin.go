@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/benji-bou/lugh/core/plugins/grpc"
-	"github.com/benji-bou/lugh/core/plugins/pluginapi"
 	"github.com/benji-bou/lugh/helper"
 
 	martian "github.com/benji-bou/lugh/plugins/proxy/martianProxy/martian"
@@ -92,7 +91,7 @@ func (mp *MartianPlugin) Produce(ctx context.Context, yield func(elem []byte) er
 func main() {
 	helper.SetLog(slog.LevelWarn, true)
 	plugin := grpc.NewPlugin("martianProxy",
-		grpc.WithPluginImplementation(pluginapi.NewConfigurableProducer(NewMartianPlugin())),
+		grpc.WithPluginProducer(NewMartianPlugin()),
 	)
 	plugin.Serve()
 }

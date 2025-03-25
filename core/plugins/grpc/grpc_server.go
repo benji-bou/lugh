@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/benji-bou/lugh/core/graph"
@@ -12,18 +13,25 @@ import (
 // Here is the gRPC server that GRPCClient talks to.
 type GRPCServer struct {
 	// This is the real implementation
-	Impl pluginapi.ConfigurableIOWorker
+	Impl pluginapi.IOWorker
 	Name string
 }
 
 func (m *GRPCServer) GetInputSchema(context.Context, *Empty) (*InputSchema, error) {
-	rawSchema, err := m.Impl.GetInputSchema()
-	is := &InputSchema{Config: rawSchema}
-	return is, err
+	if implConfigurer, ok := m.Impl.(pluginapi.PluginConfigurer); ok {
+
+		rawSchema, err := implConfigurer.GetInputSchema()
+		is := &InputSchema{Config: rawSchema}
+		return is, err
+	}
+	return nil, fmt.Errorf("plugin %s does not implement PluginConfigurer", m.Name)
 }
 
 func (m *GRPCServer) Config(_ context.Context, config *RunInputConfig) (*Empty, error) {
-	return &Empty{}, m.Impl.Config(config.Config)
+	if implConfigurer, ok := m.Impl.(pluginapi.PluginConfigurer); ok {
+		return &Empty{}, implConfigurer.Config(config.Config)
+	}
+	return nil, fmt.Errorf("plugin %s does not implement PluginConfigurer", m.Name)
 }
 
 func (m *GRPCServer) input(ctx graph.SyncContext, stream grpc.BidiStreamingServer[DataStream, RunStream]) error {

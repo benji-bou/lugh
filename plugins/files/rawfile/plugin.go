@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 
 	"github.com/benji-bou/lugh/core/plugins/grpc"
-	"github.com/benji-bou/lugh/core/plugins/pluginapi"
 	"github.com/benji-bou/lugh/helper"
 )
 
@@ -65,7 +64,7 @@ func (mp *RawFile) Consume(_ context.Context, input []byte) error {
 func main() {
 	helper.SetLog(slog.LevelDebug, false)
 	plugin := grpc.NewPlugin("rawfile",
-		grpc.WithPluginImplementation(pluginapi.NewConfigurableConsumer(NewRawFile())),
+		grpc.WithPluginConsumer(NewRawFile()),
 	)
 	plugin.Serve()
 }

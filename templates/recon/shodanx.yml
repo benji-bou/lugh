@@ -8,24 +8,17 @@ stages:
     config:
       - goTemplate:
           format: string
-          pattern: " subdomain -d {{ . }}"
+          pattern: {{`" subdomain -d {{ . }}" `}}
   shodanx:
     parents:
       - prepareShodan
     plugin: docker
     config:
       image: shodanx:latest
-  write:
-    parents:
-      - shodanx
-    plugin: rawfile
-    config:
-      filepath: ./shodanx.txt
   output:
     parents:
       - shodanx
-    plugin: transform
-    config:
-      - regex:
-         pattern: '\[.*\[1m.*\[34mINFO.*\[0m\]: .*\[1m.*\[37m(.*).\[0m'
-         select: 1
+    include: ./templates/helper/output.yml
+    variables:
+      raw_output:
+        filepath: ./raw_shodanx.txt

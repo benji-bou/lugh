@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/benji-bou/lugh/core/plugins/grpc"
-	"github.com/benji-bou/lugh/core/plugins/pluginapi"
 	"github.com/benji-bou/lugh/helper"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -116,7 +115,7 @@ func (wh Docker) Work(ctx context.Context, input []byte, yield func([]byte) erro
 func main() {
 	helper.SetLog(slog.LevelDebug, false)
 	plugin := grpc.NewPlugin("docker",
-		grpc.WithPluginImplementation(pluginapi.NewConfigurableWorker(NewDocker())),
+		grpc.WithPluginWorker(NewDocker()),
 	)
 	plugin.Serve()
 }

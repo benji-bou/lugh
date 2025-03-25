@@ -11,7 +11,6 @@ import (
 	"os/exec"
 
 	"github.com/benji-bou/lugh/core/plugins/grpc"
-	"github.com/benji-bou/lugh/core/plugins/pluginapi"
 	"github.com/benji-bou/lugh/helper"
 )
 
@@ -128,7 +127,7 @@ func (mp *Shell) Run(ctx context.Context, input <-chan []byte, yield func(elem [
 func main() {
 	helper.SetLog(slog.LevelError, true)
 	plugin := grpc.NewPlugin("shell",
-		grpc.WithPluginImplementation(pluginapi.NewConfigurableRunner(NewShell())),
+		grpc.WithPluginRunner(NewShell()),
 	)
 	plugin.Serve()
 }

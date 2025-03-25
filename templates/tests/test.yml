@@ -8,11 +8,12 @@ stages:
     plugin: rawfile
     config:
       filepath: {{ .filepath }}
-  out:
-    plugin: stdoutput
-  trasform:
-    plugin: transform
-    config:
-      - goTemplate:
-          format: string
-          pattern: {{`"{{.}}"`}}
+  output:
+    include: ./templates/helper/output.yml
+    variables:
+      raw_output:
+        filepath: {{.filepath}}.test_raw.txt
+      output:
+        pattern: {{ "{{ .host }}" | quote }}
+        format : json
+        filepath: {{.filepath}}.test_output.txt

@@ -5,9 +5,13 @@ version: "0.1"
 
 stages:
   test_1:
-    include: ./templates/test.yml
+    include: ./templates/tests/test.yml
+    variables:
+      filepath: ./test1
   test_2:
-    include: ./templates/test.yml
+    include: ./templates/tests/test.yml
+    variables:
+        filepath: ./test2
   out:
     parents:
       - test_1

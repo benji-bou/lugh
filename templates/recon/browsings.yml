@@ -1,5 +1,5 @@
-name: test
-description: test template
+name: browsing
+description: browsings proxy
 author: bbo
 version: "0.1"
 
@@ -17,81 +17,13 @@ stages:
           scope:
             - request
             - response
-  extractRequestURL:
+  output:
     parents:
-      - martianProxy
-    plugin: transform
-    config:
-     - goTemplate:
-        format: json
+     - martianProxy
+    include: ./templates/helper/output.yml
+    variables:
+      raw_output:
+        filepath: ./proxy.txt
+      output:
         pattern: {{`"{{ .request.url }}"`}}
-  distinctURL:
-    parents:
-      - extractRequestURL
-    plugin: distinct
-
-
-  distinct_output:
-    parents:
-      - katana
-      - martianProxy
-    config:
-      goTemplateFilter: {{`"{{ .request.url }}"`}}
-    plugin: distinct
-
-  leaks:
-    parents:
-      - distinct_output
-    plugin: leaks
-
-  leaksInsert:
-    parents:
-      - leaks
-    plugin: transform
-    config:
-      - insert:
-          content: "\n"
-
-  leaks_output:
-    parents:
-      - leaksInsert
-    plugin: rawfile
-    config:
-      filepath: ./leaks_res.txt
-
-
-
-
-
-  martian_output_preparation:
-    parents:
-      - martianProxy
-    plugin: transform
-    config:
-      - goTemplate:
-          pattern: {{`"{{ .request.url }}"`}}
-      - insert:
-          content: "\n"
-  martian_output:
-    parents:
-      - martian_output_preparation
-    config:
-      filepath: ./martian_res.txt
-    plugin: rawfile
-
-  consolidated_output_preparation:
-    parents:
-      - katana
-      - martianProxy
-    plugin: transform
-    config:
-      - insert:
-          content: "\n"
-
-
-  consolidated_output:
-    parents:
-      - consolidated_output_preparation
-    config:
-      filepath: ./consolidated_res.txt
-    plugin: rawfile
+        filepath: ./proxy_urls.txt

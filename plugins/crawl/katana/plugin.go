@@ -8,7 +8,6 @@ import (
 	"math"
 
 	"github.com/benji-bou/lugh/core/plugins/grpc"
-	"github.com/benji-bou/lugh/core/plugins/pluginapi"
 	"github.com/benji-bou/lugh/helper"
 	"github.com/projectdiscovery/katana/pkg/engine/standard"
 	"github.com/projectdiscovery/katana/pkg/output"
@@ -80,7 +79,7 @@ func (mp *Katana) Work(_ context.Context, input []byte, yield func(elem []byte) 
 func main() {
 	helper.SetLog(slog.LevelError, true)
 	plugin := grpc.NewPlugin("Katana",
-		grpc.WithPluginImplementation(pluginapi.NewConfigurableWorker(NewKatana())),
+		grpc.WithPluginWorker(NewKatana()),
 	)
 	plugin.Serve()
 }

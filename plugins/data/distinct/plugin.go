@@ -10,7 +10,6 @@ import (
 	"log/slog"
 
 	"github.com/benji-bou/lugh/core/plugins/grpc"
-	"github.com/benji-bou/lugh/core/plugins/pluginapi"
 	"github.com/benji-bou/lugh/helper"
 )
 
@@ -98,7 +97,7 @@ func (mp *MemFilter) Work(_ context.Context, input []byte, yield func(elem []byt
 func main() {
 	helper.SetLog(slog.LevelDebug, true)
 	plugin := grpc.NewPlugin("distinct",
-		grpc.WithPluginImplementation(pluginapi.NewConfigurableWorker(NewMemFilter())),
+		grpc.WithPluginWorker(NewMemFilter()),
 	)
 	plugin.Serve()
 }

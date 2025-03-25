@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/benji-bou/lugh/core/plugins/grpc"
-	"github.com/benji-bou/lugh/core/plugins/pluginapi"
 	"github.com/benji-bou/lugh/helper"
 )
 
@@ -37,7 +36,7 @@ func (Output) Consume(ctx context.Context, input []byte) error {
 func main() {
 	helper.SetLog(slog.LevelDebug, true)
 	plugin := grpc.NewPlugin("output",
-		grpc.WithPluginImplementation(pluginapi.NewConfigurableConsumer(NewOutput())),
+		grpc.WithPluginConsumer(NewOutput()),
 	)
 	plugin.Serve()
 }

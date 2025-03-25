@@ -8,7 +8,7 @@ stages:
     config:
       - goTemplate:
           format: string
-          pattern: " -d {{ . }} -silent -rl 10 -oJ"
+          pattern: {{`" -d {{ . }} -silent -rl 10 -oJ"`}}
   subfinder:
     parents:
       - prepareSubfinder
@@ -22,3 +22,7 @@ stages:
     variables:
       raw_output:
         filepath: ./raw_subfinder.txt
+      output:
+        # pattern: {{ "{{ .host }}" | quote }}
+        # format : json
+        filepath: ./url_subfinder.txt

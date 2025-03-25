@@ -9,7 +9,6 @@ import (
 
 	"github.com/benji-bou/enola"
 	"github.com/benji-bou/lugh/core/plugins/grpc"
-	"github.com/benji-bou/lugh/core/plugins/pluginapi"
 	"github.com/benji-bou/lugh/helper"
 )
 
@@ -72,7 +71,7 @@ func (wh Enola) GetInputSchema() ([]byte, error) {
 func main() {
 	helper.SetLog(slog.LevelDebug, false)
 	plugin := grpc.NewPlugin("enola",
-		grpc.WithPluginImplementation(pluginapi.NewConfigurableWorker(NewEnola())),
+		grpc.WithPluginWorker(NewEnola()),
 	)
 	plugin.Serve()
 }
