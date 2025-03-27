@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/benji-bou/lugh/core/graph"
+	"github.com/benji-bou/lugh/core/plugins"
 	"github.com/benji-bou/lugh/core/plugins/grpc"
 	"github.com/benji-bou/lugh/core/template"
 	"github.com/benji-bou/lugh/helper"
@@ -53,7 +54,7 @@ func main() {
 		},
 		Action: func(c *cli.Context) error {
 			defer grpc.CleanupClients()
-
+			plugins.InitLoader()
 			helper.SetLog(slog.LevelDebug, false)
 			if c.IsSet("draw-graph-only") {
 				return DrawGraphOnly(c)

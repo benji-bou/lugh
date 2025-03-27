@@ -18,16 +18,18 @@ var (
 type IOWorkerGRPCPlugin struct {
 	// GRPCPlugin must still implement the Plugin interface
 	goplugin.NetRPCUnsupportedPlugin
-	Impl pluginapi.IOWorker
-	Name string
+	Worker     pluginapi.IOWorker
+	Configurer pluginapi.PluginConfigurer
+	Name       string
 	// Concrete implementation, written in Go. This is only used for plugins
 	// that are written in Go.
 }
 
 func (p IOWorkerGRPCPlugin) GRPCServer(_ *goplugin.GRPCBroker, s *grpc.Server) error {
 	RegisterIOWorkerPluginsServer(s, &GRPCServer{
-		Impl: p.Impl,
-		Name: p.Name,
+		Worker:     p.Worker,
+		Name:       p.Name,
+		Configurer: p.Configurer,
 	})
 	return nil
 }

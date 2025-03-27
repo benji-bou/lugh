@@ -3,18 +3,14 @@ description: search dubdomain using subfinder
 author: bbo
 version: "0.1"
 stages:
-  prepareSubfinder:
-    plugin: transform
+  subfinder:
+    plugin: pipe
     config:
       - goTemplate:
           format: string
           pattern: {{`" -d {{ . }} -silent -rl 10 -oJ"`}}
-  subfinder:
-    parents:
-      - prepareSubfinder
-    plugin: docker
-    config:
-      image: projectdiscovery/subfinder:latest
+      - docker:
+          image: projectdiscovery/subfinder:latest
   output:
     parents:
       - subfinder
@@ -23,6 +19,6 @@ stages:
       raw_output:
         filepath: ./raw_subfinder.txt
       output:
-        # pattern: {{ "{{ .host }}" | quote }}
-        # format : json
+        pattern: {{ "{{ .host }}" | quote }}
+        format : json
         filepath: ./url_subfinder.txt

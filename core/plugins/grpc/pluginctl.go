@@ -108,31 +108,51 @@ func WithCmdConfig(cmd *exec.Cmd) PluginOption {
 
 func WithPluginProducer(plg pluginapi.Producer) PluginOption {
 	return func(p *Plugin) {
-		p.plugin = IOWorkerGRPCPlugin{Impl: graph.NewIOWorkerFromProducer(plg), Name: p.name}
+		var configurer pluginapi.PluginConfigurer
+		if configurerTmp, ok := plg.(pluginapi.PluginConfigurer); ok {
+			configurer = configurerTmp
+		}
+		p.plugin = IOWorkerGRPCPlugin{Worker: graph.NewIOWorkerFromProducer(plg), Configurer: configurer, Name: p.name}
 	}
 }
 
 func WithPluginConsumer(plg pluginapi.Consumer) PluginOption {
 	return func(p *Plugin) {
-		p.plugin = IOWorkerGRPCPlugin{Impl: graph.NewIOWorkerFromConsumer(plg), Name: p.name}
+		var configurer pluginapi.PluginConfigurer
+		if configurerTmp, ok := plg.(pluginapi.PluginConfigurer); ok {
+			configurer = configurerTmp
+		}
+		p.plugin = IOWorkerGRPCPlugin{Worker: graph.NewIOWorkerFromConsumer(plg), Configurer: configurer, Name: p.name}
 	}
 }
 
 func WithPluginRunner(plg pluginapi.Runner) PluginOption {
 	return func(p *Plugin) {
-		p.plugin = IOWorkerGRPCPlugin{Impl: graph.NewIOWorkerFromRunner(plg), Name: p.name}
+		var configurer pluginapi.PluginConfigurer
+		if configurerTmp, ok := plg.(pluginapi.PluginConfigurer); ok {
+			configurer = configurerTmp
+		}
+		p.plugin = IOWorkerGRPCPlugin{Worker: graph.NewIOWorkerFromRunner(plg), Configurer: configurer, Name: p.name}
 	}
 }
 
 func WithPluginWorker(plg pluginapi.Worker) PluginOption {
 	return func(p *Plugin) {
-		p.plugin = IOWorkerGRPCPlugin{Impl: graph.NewIOWorkerFromWorker(plg), Name: p.name}
+		var configurer pluginapi.PluginConfigurer
+		if configurerTmp, ok := plg.(pluginapi.PluginConfigurer); ok {
+			configurer = configurerTmp
+		}
+		p.plugin = IOWorkerGRPCPlugin{Worker: graph.NewIOWorkerFromWorker(plg), Configurer: configurer, Name: p.name}
 	}
 }
 
 func WithPluginIOWorker(plg pluginapi.IOWorker) PluginOption {
 	return func(p *Plugin) {
-		p.plugin = IOWorkerGRPCPlugin{Impl: plg, Name: p.name}
+		var configurer pluginapi.PluginConfigurer
+		if configurerTmp, ok := plg.(pluginapi.PluginConfigurer); ok {
+			configurer = configurerTmp
+		}
+		p.plugin = IOWorkerGRPCPlugin{Worker: plg, Configurer: configurer, Name: p.name}
 	}
 }
 

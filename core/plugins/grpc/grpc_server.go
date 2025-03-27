@@ -13,14 +13,15 @@ import (
 // Here is the gRPC server that GRPCClient talks to.
 type GRPCServer struct {
 	// This is the real implementation
-	Impl pluginapi.IOWorker
-	Name string
+	Worker     pluginapi.IOWorker
+	Configurer pluginapi.PluginConfigurer
+	Name       string
 }
 
 func (m *GRPCServer) GetInputSchema(context.Context, *Empty) (*InputSchema, error) {
-	if implConfigurer, ok := m.Impl.(pluginapi.PluginConfigurer); ok {
+	if m.Configurer != nil {
 
-		rawSchema, err := implConfigurer.GetInputSchema()
+		rawSchema, err := m.Configurer.GetInputSchema()
 		is := &InputSchema{Config: rawSchema}
 		return is, err
 	}
@@ -28,15 +29,15 @@ func (m *GRPCServer) GetInputSchema(context.Context, *Empty) (*InputSchema, erro
 }
 
 func (m *GRPCServer) Config(_ context.Context, config *RunInputConfig) (*Empty, error) {
-	if implConfigurer, ok := m.Impl.(pluginapi.PluginConfigurer); ok {
-		return &Empty{}, implConfigurer.Config(config.Config)
+	if m.Configurer != nil {
+		return &Empty{}, m.Configurer.Config(config.Config)
 	}
 	return nil, fmt.Errorf("plugin %s does not implement PluginConfigurer", m.Name)
 }
 
 func (m *GRPCServer) input(ctx graph.SyncContext, stream grpc.BidiStreamingServer[DataStream, RunStream]) error {
 	inputC := make(chan []byte)
-	m.Impl.SetInput(inputC)
+	m.Worker.SetInput(inputC)
 	defer close(inputC)
 	runLoop := NewRunLoop()
 	ctx.Initialized()
@@ -63,10 +64,10 @@ func (m *GRPCServer) Run(stream grpc.BidiStreamingServer[DataStream, RunStream])
 	currentctx, cancelCtx := context.WithCancel(stream.Context())
 	defer cancelCtx()
 	ctxSync := graph.NewContext(currentctx)
-	outputC := m.Impl.Output()
+	outputC := m.Worker.Output()
 	ctxSync.Initializing()
 	go m.input(ctxSync, stream)
-	errC := m.Impl.Run(ctxSync)
+	errC := m.Worker.Run(ctxSync)
 	runLoop := NewRunLoop()
 	ctxSync.Synchronize()
 	for {
