@@ -7,6 +7,10 @@ import (
 
 type Plugin struct{}
 
+func New() Plugin {
+	return Plugin{}
+}
+
 func (Plugin) Config(_ []byte) error {
 	return nil
 }

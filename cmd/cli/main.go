@@ -72,7 +72,11 @@ func DrawGraphOnly(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	g := graph.NewIO(graph.WithVertices(tpl.WorkerVertexIterator(c.String("plugins-path"))))
+	vertices, err := tpl.WorkerVertexIterator(c.String("plugins-path"))
+	if err != nil {
+		return err
+	}
+	g := graph.NewIO(graph.WithVertices(vertices))
 	return g.DrawGraph(c.String("draw-graph-only"))
 }
 
@@ -91,7 +95,11 @@ func RunTemplate(c *cli.Context) error {
 		slog.Error("failed to start template", "error", err)
 		return err
 	}
-	g := graph.NewIO(graph.WithVertices(tpl.WorkerVertexIterator(c.String("plugins-path"))))
+	vertices, err := tpl.WorkerVertexIterator(c.String("plugins-path"))
+	if err != nil {
+		return err
+	}
+	g := graph.NewIO(graph.WithVertices(vertices))
 	inputC := make(chan []byte)
 	g.SetInput(inputC)
 	ctx := graph.NewContext(c.Context)

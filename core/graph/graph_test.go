@@ -54,7 +54,7 @@ func TestUndirectedNeighboors(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			expected := neighborsFromTestVertices(tc.SubVertices, addNeighbors)
 			g := graphtest.NewGraphTest()
-			err := g.AddVertices(slices.Values(slices.Concat(tc.SubVertices...)))
+			err := g.AddVertices(slices.Concat(tc.SubVertices...))
 			if err != nil {
 				t.Errorf("Error adding vertices: %v", err)
 				return
@@ -77,7 +77,7 @@ func TestSplit(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			g := graphtest.NewGraphTest()
-			err := g.AddVertices(slices.Values(slices.Concat(tc.SubVertices...)))
+			err := g.AddVertices(slices.Concat(tc.SubVertices...))
 			if err != nil {
 				t.Errorf("Error adding vertices: %v", err)
 				return

@@ -1,72 +1,70 @@
 package plugins
 
 import (
-	"encoding/json"
 	"fmt"
 
-	"github.com/benji-bou/lugh/core/graph"
-	"github.com/benji-bou/lugh/core/plugins/grpc"
-	"github.com/benji-bou/lugh/core/plugins/pluginapi"
+	"github.com/benji-bou/lugh/core/plugins/load"
+	"github.com/benji-bou/lugh/core/plugins/static/data/base64"
+	"github.com/benji-bou/lugh/core/plugins/static/data/forward"
+	"github.com/benji-bou/lugh/core/plugins/static/data/insert"
+	"github.com/benji-bou/lugh/core/plugins/static/data/regex"
+	"github.com/benji-bou/lugh/core/plugins/static/data/split"
+	"github.com/benji-bou/lugh/core/plugins/static/data/template"
 	"github.com/benji-bou/lugh/core/plugins/static/fileinput"
-	"github.com/benji-bou/lugh/core/plugins/static/forward"
+	"github.com/benji-bou/lugh/core/plugins/static/pipe"
 	"github.com/benji-bou/lugh/core/plugins/static/stdoutput"
-	"github.com/benji-bou/lugh/core/plugins/static/transform"
+	"github.com/mitchellh/mapstructure"
 )
 
-func LoadPlugin(name string, path string, config any) (graph.IOWorker[[]byte], error) {
-	plugin, err := getPlugin(name, path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load plugin %s: %w", name, err)
-	}
-	jsonConfig, err := json.Marshal(config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal config for plugin %s: %w", name, err)
-	}
-	if configurablePlugin, ok := plugin.(pluginapi.PluginConfigurer); ok {
-		err = configurablePlugin.Config(jsonConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to configure plugin %s: %w", name, err)
+func InitLoader() {
+	load.RegisterDefault(load.Configure(load.GRPC))
+	load.Register("forward", load.Default(func() any {
+		return forward.Worker[[]byte]()
+	}))
+	load.Register("fileinput", load.Default(func() any {
+		return fileinput.New()
+	}))
+	load.Register("pipe", load.Configure(func(name, path string) (any, error) {
+		return pipe.New(path), nil
+	}), "transform")
+	load.Register("output", load.Default(func() any {
+		return stdoutput.New()
+	}), "stdoutput")
+	load.Register("split", load.LoaderFunc(func(name, path string, config any) (any, error) {
+		sep := "\n"
+		if configMap, ok := config.(map[string]any); ok {
+			if s, ok := configMap["sep"].(string); ok {
+				sep = s
+			}
 		}
-	}
-	return plugin, nil
-}
+		return split.Worker(sep), nil
+	}))
+	load.Register("base64", load.Default(func() any {
+		return base64.Base64Decode()
+	}))
+	load.Register("insert", load.LoaderFunc(func(name, path string, config any) (any, error) {
+		insertStr := "\n"
+		if configMap, ok := config.(map[string]any); ok {
+			if s, ok := configMap["content"].(string); ok {
+				insertStr = s
+			}
+		}
+		return insert.Worker(insertStr), nil
+	}))
 
-func getPlugin(name string, path string) (graph.IOWorker[[]byte], error) {
-	var ioworker any
-	switch name {
-	case "forward":
-		ioworker = forward.Worker[[]byte]()
-	case "input", "fileinput":
-		ioworker = fileinput.New()
-	case "transform":
-		ioworker = transform.New()
-	case "output", "stdoutput":
-		ioworker = stdoutput.Plugin{}
-	default:
-		var err error
-		var runner pluginapi.Runner
-		if path != "" {
-			runner, err = grpc.NewPlugin(name, grpc.WithPath(path)).Connect()
-		} else {
-			runner, err = grpc.NewPlugin(name).Connect()
+	load.Register("regex", load.LoaderFunc(func(name, path string, config any) (any, error) {
+		var regConfig regex.Config
+		if err := mapstructure.Decode(config, &regConfig); err != nil {
+			return nil, fmt.Errorf("regex loader: decode config: %w", err)
 		}
-		if err != nil {
-			return nil, err
+		return regex.Worker(regConfig)
+	}))
+
+	load.Register("template", load.LoaderFunc(func(name, path string, config any) (any, error) {
+		var tplConfig template.Config
+		if err := mapstructure.Decode(config, &tplConfig); err != nil {
+			return nil, fmt.Errorf("template loader: decode config: %w", err)
 		}
-		ioworker = runner
-	}
-	switch ioworker.(type) {
-	case graph.IOWorker[[]byte]:
-		return ioworker.(graph.IOWorker[[]byte]), nil
-	case graph.Worker[[]byte]:
-		return graph.NewIOWorkerFromWorker(ioworker.(graph.Worker[[]byte])), nil
-	case graph.Producer[[]byte]:
-		return graph.NewIOWorkerFromProducer(ioworker.(graph.Producer[[]byte])), nil
-	case graph.Consumer[[]byte]:
-		return graph.NewIOWorkerFromConsumer(ioworker.(graph.Consumer[[]byte])), nil
-	case graph.Runner[[]byte]:
-		return graph.NewIOWorkerFromRunner(ioworker.(graph.Runner[[]byte])), nil
-	default:
-		return nil, fmt.Errorf("unknown plugin type: %T", ioworker)
-	}
+		return template.Worker(tplConfig)
+	}), "goTemplate")
 }

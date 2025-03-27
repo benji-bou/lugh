@@ -3,7 +3,6 @@ package template
 import (
 	"bytes"
 	"fmt"
-	"iter"
 	"os"
 	"text/template"
 
@@ -13,7 +12,7 @@ import (
 )
 
 type PluginLoader interface {
-	LoadPlugin(name string, defaultPluginsPath string, variables map[string]interface{}) graph.IOWorkerVertex[[]byte]
+	LoadPlugin(name string, defaultPluginsPath string, variables map[string]interface{}) (graph.IOWorkerVertex[[]byte], error)
 }
 
 type Template[S PluginLoader] struct {
@@ -74,15 +73,14 @@ func InterpolateVariable(raw []byte, variables map[string]interface{}) ([]byte, 
 	return res, nil
 }
 
-func (t Template[S]) WorkerVertexIterator(defaultPluginsPath string) iter.Seq[graph.IOWorkerVertex[[]byte]] {
-	return func(yield func(graph.IOWorkerVertex[[]byte]) bool) {
-		for name, rawStage := range t.Stages {
-			worker := rawStage.LoadPlugin(name, defaultPluginsPath, t.Variables)
-			if worker != nil {
-				if !yield(worker) {
-					return
-				}
-			}
+func (t Template[S]) WorkerVertexIterator(defaultPluginsPath string) ([]graph.IOWorkerVertex[[]byte], error) {
+	workerVertices := make([]graph.IOWorkerVertex[[]byte], 0, len(t.Stages))
+	for name, rawStage := range t.Stages {
+		worker, err := rawStage.LoadPlugin(name, defaultPluginsPath, t.Variables)
+		if err != nil {
+			return nil, err
 		}
+		workerVertices = append(workerVertices, worker)
 	}
+	return workerVertices, nil
 }

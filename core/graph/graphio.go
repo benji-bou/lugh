@@ -21,7 +21,7 @@ type IO[K any] struct {
 	outputC       <-chan K
 }
 
-func WithVertices[K any](it iter.Seq[IOWorkerVertex[K]]) IOGraphOption[K] {
+func WithVertices[K any](it []IOWorkerVertex[K]) IOGraphOption[K] {
 	return func(configure *IO[K]) {
 		err := configure.AddVertices(it)
 		if err != nil {

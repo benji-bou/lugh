@@ -250,8 +250,7 @@ func (g *GraphSelfDescribe[K, T]) AddSelfDescribeVertex(newVertex T) error {
 	return nil
 }
 
-func (g *GraphSelfDescribe[K, T]) AddVertices(verticesIter iter.Seq[T]) error {
-	vertices := slices.Collect(verticesIter)
+func (g *GraphSelfDescribe[K, T]) AddVertices(vertices []T) error {
 	for _, newVertex := range vertices {
 		err := g.AddVertex(newVertex)
 		if err != nil {

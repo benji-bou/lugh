@@ -55,30 +55,26 @@ type VertexSelfDescribe[K comparable] interface {
 	GetName() K
 	GetParents() []K
 }
-type IOWorkerVertex[K any] interface {
-	IOWorker[K]
-	VertexSelfDescribe[string]
-}
 
-type DefaultIOWorkerVertex[K any] struct {
+type IOWorkerVertex[K any] struct {
 	IOWorker[K]
 	name    string
 	parents []string
 }
 
-func NewDefaultIOWorkerVertex[K any](name string, parents []string, decorated IOWorker[K]) *DefaultIOWorkerVertex[K] {
-	return &DefaultIOWorkerVertex[K]{
+func NewIOWorkerVertex[K any](name string, parents []string, decorated IOWorker[K]) IOWorkerVertex[K] {
+	return IOWorkerVertex[K]{
 		IOWorker: NewBroadcasterIOWorker(decorated),
 		name:     name,
 		parents:  parents,
 	}
 }
 
-func (dwv *DefaultIOWorkerVertex[K]) GetName() string {
+func (dwv IOWorkerVertex[K]) GetName() string {
 	return dwv.name
 }
 
-func (dwv *DefaultIOWorkerVertex[K]) GetParents() []string {
+func (dwv IOWorkerVertex[K]) GetParents() []string {
 	return dwv.parents
 }
 

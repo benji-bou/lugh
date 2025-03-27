@@ -3,7 +3,6 @@ package graph
 import (
 	"context"
 	"fmt"
-	"slices"
 	"testing"
 )
 
@@ -16,13 +15,13 @@ func ForwardWorker[K any]() IOWorker[K] {
 func TestInitialize(t *testing.T) {
 	forwardWorker := ForwardWorker[int]()
 	g := NewIO[int](WithVertices(
-		slices.Values([]IOWorkerVertex[int]{
-			NewDefaultIOWorkerVertex(
+		[]IOWorkerVertex[int]{
+			NewIOWorkerVertex(
 				"forward",
 				[]string{},
 				ForwardWorker[int](),
 			),
-		}),
+		},
 	),
 	)
 	t.Run("SetInput on worker", func(t *testing.T) {
@@ -52,7 +51,7 @@ func TestInitialize(t *testing.T) {
 			t.Errorf("Get vertex failed %s", err.Error())
 			return
 		}
-		workerInputC := forward.(*DefaultIOWorkerVertex[int]).IOWorker.(*BroadcasterIOWorker[int]).IOWorker.(*syncWorker[int]).inputC
+		workerInputC := forward.IOWorker.(*BroadcasterIOWorker[int]).IOWorker.(*syncWorker[int]).inputC
 
 		select {
 		case _, ok := <-inputgraph:

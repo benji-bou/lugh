@@ -3,9 +3,7 @@ package graphtest
 import (
 	"context"
 	"fmt"
-	"iter"
 	"log/slog"
-	"slices"
 	"testing"
 
 	"github.com/benji-bou/lugh/core/graph"
@@ -91,7 +89,7 @@ func NonRunningSingleForwardWorker() (inputC chan<- []byte, outputC <-chan []byt
 }
 
 // GraphWorker is an helper function that Run a `graph as a IOWorker`  setting input and output of the graph`
-func GraphWorker[K any](workers iter.Seq[graph.IOWorkerVertex[K]]) IOFunc[K] {
+func GraphWorker[K any](workers []graph.IOWorkerVertex[K]) IOFunc[K] {
 	gr := graph.NewIO(graph.WithVertices(workers))
 	return func() (chan<- K, <-chan K, <-chan error) {
 		inputC := make(chan K)
@@ -125,28 +123,28 @@ func GenerateWorkerProducers[K any, A ~[]K](ctx graph.SyncContext, elements ...A
 }
 
 var (
-	SingleForward = slices.Values([]graph.IOWorkerVertex[int]{
-		graph.NewDefaultIOWorkerVertex("forward", []string{},
+	SingleForward = []graph.IOWorkerVertex[int]{
+		graph.NewIOWorkerVertex("forward", []string{},
 			ForwardWorker[int]()),
-	})
-	LinearWorkerChainMult2 = slices.Values([]graph.IOWorkerVertex[int]{
-		graph.NewDefaultIOWorkerVertex("forward", []string{},
+	}
+	LinearWorkerChainMult2 = []graph.IOWorkerVertex[int]{
+		graph.NewIOWorkerVertex("forward", []string{},
 			ForwardWorker[int]()),
-		graph.NewDefaultIOWorkerVertex("mult11", []string{"forward"},
+		graph.NewIOWorkerVertex("mult11", []string{"forward"},
 			MultWorker[int](11)), //nolint:mnd // test 11 is expected here
-		graph.NewDefaultIOWorkerVertex("odd", []string{"mult11"},
+		graph.NewIOWorkerVertex("odd", []string{"mult11"},
 			OddWorker[int]()),
-	})
-	SplitWorkerChainMult2_3 = slices.Values([]graph.IOWorkerVertex[int]{
-		graph.NewDefaultIOWorkerVertex("forward", []string{},
+	}
+	SplitWorkerChainMult2_3 = []graph.IOWorkerVertex[int]{
+		graph.NewIOWorkerVertex("forward", []string{},
 			ForwardWorker[int]()),
-		graph.NewDefaultIOWorkerVertex("mult2", []string{"forward"},
+		graph.NewIOWorkerVertex("mult2", []string{"forward"},
 			MultWorker[int](2)),
-		graph.NewDefaultIOWorkerVertex("mult3", []string{"forward"},
+		graph.NewIOWorkerVertex("mult3", []string{"forward"},
 			MultWorker[int](3)),
-		graph.NewDefaultIOWorkerVertex("even", []string{"mult3"},
+		graph.NewIOWorkerVertex("even", []string{"mult3"},
 			EvenWorker[int]()),
-	})
+	}
 )
 
 // TestWorkerChain is an helper function that test the `workerConfigTest` provided
