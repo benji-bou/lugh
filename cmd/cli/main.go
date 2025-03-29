@@ -69,11 +69,11 @@ func main() {
 
 func DrawGraphOnly(c *cli.Context) error {
 	tplPath := c.String("template")
-	tpl, err := template.NewFile(tplPath, nil)
+	tpl, err := template.NewFile[template.Stage](tplPath, template.WithPluginPath(c.String("plugins-path")))
 	if err != nil {
 		return err
 	}
-	vertices, err := tpl.WorkerVertexIterator(c.String("plugins-path"))
+	vertices, err := tpl.WorkerVertexIterator()
 	if err != nil {
 		return err
 	}
@@ -91,12 +91,15 @@ func RunTemplate(c *cli.Context) error {
 		}
 		variables[parts[0]] = parts[1]
 	}
-	tpl, err := template.NewFile(tplPath, variables)
+	tpl, err := template.NewFile[template.Stage](tplPath,
+		template.WithPluginPath(c.String("plugins-path")),
+		template.WithVariables(variables),
+	)
 	if err != nil {
 		slog.Error("failed to start template", "error", err)
 		return err
 	}
-	vertices, err := tpl.WorkerVertexIterator(c.String("plugins-path"))
+	vertices, err := tpl.WorkerVertexIterator()
 	if err != nil {
 		return err
 	}

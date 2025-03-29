@@ -9,10 +9,12 @@ stages:
     config:
       filepath: {{ .filepath }}
   output:
-    include: ./templates/helper/output.yml
-    variables:
-      raw_output:
-        filepath: {{.filepath}}.test_raw.txt
-      output:
-        pattern: {{ "{{ . }}" | quote }}
-        filepath: {{.filepath}}.test_output.txt
+    plugin: include
+    config:
+      filepath: ./templates/helper/output.yml
+      variables:
+        raw_output:
+          filepath: {{.filepath}}.test_raw.txt
+        output:
+          pattern: {{ "{{ . }}" | quote }}
+          filepath: {{.filepath}}.test_output.txt

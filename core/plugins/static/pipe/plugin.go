@@ -42,7 +42,7 @@ func (p *Plugin) ExtractPluginPath(config any) string {
 }
 
 func (p *Plugin) Config(config []byte) error {
-	decodedConfig := []map[string]any{}
+	decodedConfig := []map[string]map[string]any{}
 	err := yaml.Unmarshal(config, &decodedConfig)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal config: %w", err)

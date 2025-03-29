@@ -12,7 +12,7 @@ stages:
 {{- end }}
 {{ with .output }}
   output_preparation:
-    plugin: transform
+    plugin: pipe
     config:
       - split:
           sep: {{ .sep | default "\r\n" | quote }}

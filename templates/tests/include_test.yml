@@ -5,12 +5,16 @@ version: "0.1"
 
 stages:
   test_1:
-    include: ./templates/tests/test.yml
-    variables:
-      filepath: ./test1
+    plugin: include
+    config:
+      filepath: ./templates/tests/test.yml
+      variables:
+        filepath: ./test1
   test_2:
-    include: ./templates/tests/test.yml
-    variables:
+    plugin: include
+    config:
+      filepath: ./templates/tests/test.yml
+      variables:
         filepath: ./test2
   out:
     parents:

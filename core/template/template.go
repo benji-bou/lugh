@@ -3,17 +3,74 @@ package template
 import (
 	"bytes"
 	"fmt"
+	"maps"
 	"os"
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/benji-bou/lugh/core/graph"
+	"github.com/benji-bou/lugh/core/plugins/load"
+	"github.com/benji-bou/lugh/helper"
 	"gopkg.in/yaml.v3"
 )
 
-type PluginLoader interface {
-	LoadPlugin(name string, defaultPluginsPath string, variables map[string]interface{}) (graph.IOWorkerVertex[[]byte], error)
+type TemplateConfig struct {
+	PluginPath string
+	Variables  map[string]interface{}
+	Loader     *load.Loader
 }
+
+// wrapTemplatePlugin wraps the `templates plugins“ loader to pass template config to plugins.
+// This is useful for plugins that need to know the template config, like the `include` plugin.
+func (tc *TemplateConfig) wrapTemplatePlugin() {
+	tc.Loader.WrapLoader("include", func(next load.Loadable) load.Loadable {
+		return load.ConfigAsMap(func(name string, path string, config map[string]any) (any, error) {
+			if includesVar, ok := config["variables"]; !ok {
+				config["variables"] = tc.Variables
+			} else if includes, ok := includesVar.(map[string]any); !ok {
+				return nil, fmt.Errorf("invalid include variables type. Expected map got %T", includesVar)
+			} else {
+				variables := make(map[string]any)
+				maps.Copy(variables, tc.Variables)
+				maps.Copy(variables, includes)
+				config["variables"] = variables
+			}
+			config["pluginpath"] = tc.PluginPath
+			return next.Load(name, path, config)
+		})
+	})
+}
+
+type TemplateOption = helper.Option[TemplateConfig]
+
+func WithLoader(loader *load.Loader) TemplateOption {
+	return func(t *TemplateConfig) {
+		t.Loader = loader
+		t.wrapTemplatePlugin()
+	}
+}
+
+func WithDefaultLoader() TemplateOption {
+	return WithLoader(load.Default())
+}
+
+func WithVariables(variables map[string]interface{}) TemplateOption {
+	return func(t *TemplateConfig) {
+		maps.Copy(t.Variables, variables)
+	}
+}
+
+func WithPluginPath(path string) TemplateOption {
+	return func(t *TemplateConfig) {
+		t.PluginPath = path
+	}
+}
+
+type (
+	PluginLoader interface {
+		LoadPlugin(name string, tplCtx TemplateConfig) (graph.IOWorkerVertex[[]byte], error)
+	}
+)
 
 type Template[S PluginLoader] struct {
 	Name        string       `yaml:"name" json:"name"`
@@ -21,7 +78,7 @@ type Template[S PluginLoader] struct {
 	Version     string       `yaml:"version" json:"version"`
 	Author      string       `yaml:"author" json:"author"`
 	Stages      map[string]S `yaml:"stages" json:"stages"`
-	Variables   map[string]interface{}
+	config      TemplateConfig
 }
 
 func (t Template[S]) Raw() ([]byte, error) {
@@ -32,28 +89,32 @@ func (t Template[S]) Raw() ([]byte, error) {
 	return tplBytes, nil
 }
 
-func NewFile(path string, variables map[string]interface{}) (Template[Stage], error) {
-	return NewTemplateFromFile[Stage](path, variables)
+func NewFile[S PluginLoader](path string, opt ...TemplateOption) (Template[S], error) {
+	return NewTemplateFromFile[S](path, opt...)
 }
 
-func NewTemplateFromFile[S PluginLoader](path string, variables map[string]interface{}) (Template[Stage], error) {
+func NewTemplateFromFile[S PluginLoader](path string, opt ...TemplateOption) (Template[S], error) {
 	content, err := os.ReadFile(path) // #nosec G304
 	if err != nil {
-		return Template[Stage]{}, err
+		return Template[S]{}, err
 	}
-	return NewTemplate[Stage](content, variables)
+	return NewTemplate[S](content, opt...)
 }
 
-func New(raw []byte, variables map[string]interface{}) (Template[Stage], error) {
-	return NewTemplate[Stage](raw, variables)
+func New[S PluginLoader](raw []byte, opt ...TemplateOption) (Template[S], error) {
+	return NewTemplate[S](raw, opt...)
 }
 
-func NewTemplate[S PluginLoader](raw []byte, variables map[string]interface{}) (Template[S], error) {
-	raw, err := InterpolateVariable(raw, variables)
+func NewTemplate[S PluginLoader](raw []byte, opt ...TemplateOption) (Template[S], error) {
+	defaultOptions := make([]TemplateOption, 0, len(opt)+1)
+	defaultOptions = append(defaultOptions, WithDefaultLoader())
+	defaultOptions = append(defaultOptions, opt...)
+	tplConfig := helper.Configure(TemplateConfig{Variables: map[string]interface{}{}}, defaultOptions...)
+	raw, err := InterpolateVariable(raw, tplConfig.Variables)
 	if err != nil {
 		return Template[S]{}, fmt.Errorf("parsing template, %w", err)
 	}
-	tpl := Template[S]{Variables: variables}
+	tpl := Template[S]{config: tplConfig}
 	err = yaml.Unmarshal(raw, &tpl)
 	return tpl, err
 }
@@ -73,10 +134,10 @@ func InterpolateVariable(raw []byte, variables map[string]interface{}) ([]byte, 
 	return res, nil
 }
 
-func (t Template[S]) WorkerVertexIterator(defaultPluginsPath string) ([]graph.IOWorkerVertex[[]byte], error) {
+func (t Template[S]) WorkerVertexIterator() ([]graph.IOWorkerVertex[[]byte], error) {
 	workerVertices := make([]graph.IOWorkerVertex[[]byte], 0, len(t.Stages))
 	for name, rawStage := range t.Stages {
-		worker, err := rawStage.LoadPlugin(name, defaultPluginsPath, t.Variables)
+		worker, err := rawStage.LoadPlugin(name, t.config)
 		if err != nil {
 			return nil, err
 		}
