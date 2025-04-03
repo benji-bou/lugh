@@ -4,7 +4,7 @@ go 1.24
 
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
-	github.com/benji-bou/diwo v0.0.8
+	github.com/benji-bou/diwo v0.0.9
 	github.com/benji-bou/enola v0.6.0
 	github.com/docker/docker v28.0.4+incompatible
 	github.com/dominikbraun/graph v0.23.0
