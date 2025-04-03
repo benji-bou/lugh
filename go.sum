@@ -38,6 +38,8 @@ github.com/aymerick/douceur v0.2.0 h1:Mv+mAeH1Q+n9Fr+oyamOlAkUNPWPlA8PPGR0QAaYuP
 github.com/aymerick/douceur v0.2.0/go.mod h1:wlT5vV2O3h55X9m7iVYN0TBM0NH/MmbLnd30/FjWUq4=
 github.com/benji-bou/diwo v0.0.8 h1:bye7BmDI9pMOcPjLijKVIvVRt8UuxBsnSNHt4HBsVE4=
 github.com/benji-bou/diwo v0.0.8/go.mod h1:asZxM8LQBQqjQKe7Ej3Q1aEs8KxLNgRuvJOx61joyBs=
+github.com/benji-bou/diwo v0.0.9 h1:fmEa6zBRYNmIvkEzfSuNNmG5ZlbwCSyoqFunSd8HqSA=
+github.com/benji-bou/diwo v0.0.9/go.mod h1:3BPVTKvxbdPBypq7SdFArhSLs4rD2002qPY1cl8XK9s=
 github.com/benji-bou/enola v0.6.0 h1:cQALSwDzdEon6E44aDCS2sWdUgp8mmWVGE+Vo3uOl+8=
 github.com/benji-bou/enola v0.6.0/go.mod h1:+B9HiJd9uqFBmcrS+sluKZxnN8hyDd+q8aE8NRA6+Ok=
 github.com/bits-and-blooms/bitset v1.20.0 h1:2F+rfL86jE2d/bmw7OhqUg2Sj/1rURkBn3MdfoPyRVU=
