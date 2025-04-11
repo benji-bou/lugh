@@ -454,6 +454,8 @@ github.com/zmap/zcrypto v0.0.0-20250129210703-03c45d0bae98/go.mod h1:YTUyN/U1oJ7
 github.com/zmap/zlint/v3 v3.0.0/go.mod h1:paGwFySdHIBEMJ61YjoqT4h7Ge+fdYG4sUQhnTb1lJ8=
 github.com/zricethezav/gitleaks/v8 v8.24.2 h1:z7bpKxdQfgOOTHz4KFCzuQ3jExVFwBKAN3vbn+ONZY0=
 github.com/zricethezav/gitleaks/v8 v8.24.2/go.mod h1:D3AhHRLVp0DigFQNxAgHcQks8EbF7wCZanT/UbGd0Jo=
+github.com/zricethezav/gitleaks/v8 v8.24.3 h1:s8zfbwUBGZIul5vgr5SZIInaRoYQSiYaZCsh94bKSNU=
+github.com/zricethezav/gitleaks/v8 v8.24.3/go.mod h1:D3AhHRLVp0DigFQNxAgHcQks8EbF7wCZanT/UbGd0Jo=
 go.etcd.io/bbolt v1.4.0 h1:TU77id3TnN/zKr7CO/uk+fBCwF2jGcMuw2B/FMAzYIk=
 go.etcd.io/bbolt v1.4.0/go.mod h1:AsD+OCi/qPN1giOX1aiLAha3o1U8rAz65bvN4j0sRuk=
 go.opentelemetry.io/auto/sdk v1.1.0 h1:cH53jehLUN6UFLY71z+NDOiNJqDdPRaXzTel0sJySYA=
