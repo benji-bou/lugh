@@ -17,7 +17,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/projectdiscovery/katana v1.1.3
 	github.com/samber/slog-echo v1.16.1
-	github.com/swaggest/jsonschema-go v0.3.74
+	github.com/swaggest/jsonschema-go v0.3.77
 	github.com/urfave/cli/v2 v2.27.6
 	github.com/urfave/cli/v3 v3.3.3
 	github.com/zricethezav/gitleaks/v8 v8.25.1
@@ -152,7 +152,7 @@ require (
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/spf13/viper v1.19.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/swaggest/refl v1.3.1 // indirect
+	github.com/swaggest/refl v1.4.0 // indirect
 	github.com/syndtr/goleveldb v1.0.0 // indirect
 	github.com/tetratelabs/wazero v1.9.0 // indirect
 	github.com/therootcompany/xz v1.0.1 // indirect
