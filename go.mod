@@ -20,7 +20,7 @@ require (
 	github.com/swaggest/jsonschema-go v0.3.77
 	github.com/urfave/cli/v2 v2.27.6
 	github.com/urfave/cli/v3 v3.3.3
-	github.com/zricethezav/gitleaks/v8 v8.25.1
+	github.com/zricethezav/gitleaks/v8 v8.26.0
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
 	google.golang.org/grpc v1.72.0
 	google.golang.org/protobuf v1.36.6
