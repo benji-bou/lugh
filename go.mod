@@ -17,7 +17,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/projectdiscovery/katana v1.1.3
 	github.com/samber/slog-echo v1.16.1
-	github.com/swaggest/jsonschema-go v0.3.77
+	github.com/swaggest/jsonschema-go v0.3.78
 	github.com/urfave/cli/v2 v2.27.6
 	github.com/urfave/cli/v3 v3.3.3
 	github.com/zricethezav/gitleaks/v8 v8.26.0
