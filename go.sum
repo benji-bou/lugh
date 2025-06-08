@@ -606,6 +606,8 @@ github.com/zricethezav/gitleaks/v8 v8.26.0 h1:TG+9xbX+q+kMPikIKcuTrmPziVDSsEBlQh
 github.com/zricethezav/gitleaks/v8 v8.26.0/go.mod h1:D3AhHRLVp0DigFQNxAgHcQks8EbF7wCZanT/UbGd0Jo=
 github.com/zricethezav/gitleaks/v8 v8.27.0 h1:WWDddKq1z4lxW62eGfcju3ur37jlQT9UToE1eAaArb0=
 github.com/zricethezav/gitleaks/v8 v8.27.0/go.mod h1:daiqIDK19snPotPOaqo0hHRnoa6cGioPojAfEKffEIY=
+github.com/zricethezav/gitleaks/v8 v8.27.1 h1:i0YE1vB5Np3EWukyt3pf6epzZ6kZIC82jcdK6IirutY=
+github.com/zricethezav/gitleaks/v8 v8.27.1/go.mod h1:daiqIDK19snPotPOaqo0hHRnoa6cGioPojAfEKffEIY=
 go.etcd.io/bbolt v1.4.0 h1:TU77id3TnN/zKr7CO/uk+fBCwF2jGcMuw2B/FMAzYIk=
 go.etcd.io/bbolt v1.4.0/go.mod h1:AsD+OCi/qPN1giOX1aiLAha3o1U8rAz65bvN4j0sRuk=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
