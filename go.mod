@@ -18,7 +18,7 @@ require (
 	github.com/projectdiscovery/katana v1.1.3
 	github.com/samber/slog-echo v1.16.1
 	github.com/swaggest/jsonschema-go v0.3.78
-	github.com/urfave/cli/v2 v2.27.6
+	github.com/urfave/cli/v2 v2.27.7
 	github.com/urfave/cli/v3 v3.3.8
 	github.com/zricethezav/gitleaks/v8 v8.27.2
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
@@ -57,7 +57,7 @@ require (
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.6 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/ditashi/jsbeautifier-go v0.0.0-20141206144643-2520a8026a9c // indirect
