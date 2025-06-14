@@ -18,7 +18,7 @@ require (
 	github.com/projectdiscovery/katana v1.1.3
 	github.com/samber/slog-echo v1.16.1
 	github.com/swaggest/jsonschema-go v0.3.78
-	github.com/urfave/cli/v2 v2.27.7
+	github.com/urfave/cli/v3 v3.3.8
 	github.com/urfave/cli/v3 v3.3.8
 	github.com/zricethezav/gitleaks/v8 v8.27.2
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
