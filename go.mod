@@ -6,7 +6,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/benji-bou/diwo v0.0.9
 	github.com/benji-bou/enola v0.6.0
-	github.com/docker/docker v28.3.1+incompatible
+	github.com/docker/docker v28.3.2+incompatible
 	github.com/dominikbraun/graph v0.23.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/martian/v3 v3.3.3
