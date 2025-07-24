@@ -17,7 +17,7 @@ require (
 	github.com/hashicorp/go-plugin v1.6.3
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/projectdiscovery/katana v1.2.0
+	github.com/projectdiscovery/katana v1.2.1
 	github.com/samber/slog-echo v1.16.1
 	github.com/swaggest/jsonschema-go v0.3.78
 	github.com/urfave/cli/v2 v2.27.7
