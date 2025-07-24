@@ -415,6 +415,8 @@ github.com/projectdiscovery/katana v1.1.3 h1:7pGtAbaIEGTIGq0pDro1WDZc0Kvk67VKI0T
 github.com/projectdiscovery/katana v1.1.3/go.mod h1:3VWaNqsnh6ovN19et3f457JXvJCk04qrTUyeHfHRxSw=
 github.com/projectdiscovery/katana v1.2.0 h1:mm7Y3+RhpQT/5SNoSSmQ+yn6ScaS6nQQk5A2lS31YvI=
 github.com/projectdiscovery/katana v1.2.0/go.mod h1:IelagYwJ/rEd3Ltqf4B9b7pDEMfs6mLKfRlpXd5wHrs=
+github.com/projectdiscovery/katana v1.2.1 h1:qAqIQVozq5D8DH8acHVPiXWuKH6QQwWx1zctAB7Qa2U=
+github.com/projectdiscovery/katana v1.2.1/go.mod h1:IelagYwJ/rEd3Ltqf4B9b7pDEMfs6mLKfRlpXd5wHrs=
 github.com/projectdiscovery/mapcidr v1.1.34 h1:udr83vQ7oz3kEOwlsU6NC6o08leJzSDQtls1wmXN/kM=
 github.com/projectdiscovery/mapcidr v1.1.34/go.mod h1:1+1R6OkKSAKtWDXE9RvxXtXPoajXTYX0eiEdkqlhQqQ=
 github.com/projectdiscovery/networkpolicy v0.1.8 h1:1yI55DwpDp5QbraMvFb/1uiHiTvX3JMHgjoWm9uwIi0=
