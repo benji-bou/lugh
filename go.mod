@@ -17,7 +17,7 @@ require (
 	github.com/hashicorp/go-plugin v1.7.0
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/projectdiscovery/katana v1.2.1
+	github.com/projectdiscovery/katana v1.2.2
 	github.com/samber/slog-echo v1.16.1
 	github.com/swaggest/jsonschema-go v0.3.78
 	github.com/urfave/cli/v2 v2.27.7
@@ -70,7 +70,7 @@ require (
 	github.com/fatih/semgroup v1.3.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
-	github.com/gaissmai/bart v0.20.5 // indirect
+	github.com/gaissmai/bart v0.23.1 // indirect
 	github.com/gitleaks/go-gitdiff v0.9.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -123,20 +123,20 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/projectdiscovery/blackrock v0.0.1 // indirect
-	github.com/projectdiscovery/dsl v0.5.0 // indirect
-	github.com/projectdiscovery/fastdialer v0.4.1 // indirect
+	github.com/projectdiscovery/dsl v0.5.1 // indirect
+	github.com/projectdiscovery/fastdialer v0.4.5 // indirect
 	github.com/projectdiscovery/goflags v0.1.74 // indirect
 	github.com/projectdiscovery/gologger v1.1.54 // indirect
 	github.com/projectdiscovery/gostruct v0.0.2 // indirect
-	github.com/projectdiscovery/hmap v0.0.91 // indirect
+	github.com/projectdiscovery/hmap v0.0.92 // indirect
 	github.com/projectdiscovery/mapcidr v1.1.34 // indirect
-	github.com/projectdiscovery/networkpolicy v0.1.18 // indirect
+	github.com/projectdiscovery/networkpolicy v0.1.20 // indirect
 	github.com/projectdiscovery/ratelimit v0.0.79 // indirect
-	github.com/projectdiscovery/retryabledns v1.0.103 // indirect
-	github.com/projectdiscovery/retryablehttp-go v1.0.118 // indirect
-	github.com/projectdiscovery/utils v0.4.21 // indirect
-	github.com/projectdiscovery/wappalyzergo v0.2.38 // indirect
-	github.com/refraction-networking/utls v1.7.0 // indirect
+	github.com/projectdiscovery/retryabledns v1.0.105 // indirect
+	github.com/projectdiscovery/retryablehttp-go v1.0.119 // indirect
+	github.com/projectdiscovery/utils v0.4.23-0.20250814173132-b5718c7ae269 // indirect
+	github.com/projectdiscovery/wappalyzergo v0.2.41 // indirect
+	github.com/refraction-networking/utls v1.7.1 // indirect
 	github.com/remeh/sizedwaitgroup v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rs/xid v1.6.0 // indirect
@@ -175,7 +175,7 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/wasilibs/go-re2 v1.10.0 // indirect
 	github.com/wasilibs/wazero-helpers v0.0.0-20250123031827-cd30c44769bb // indirect
-	github.com/weppos/publicsuffix-go v0.40.3-0.20250127173806-e489a31678ca // indirect
+	github.com/weppos/publicsuffix-go v0.40.3-0.20250408071509-6074bbe7fd39 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	github.com/ysmood/fetchup v0.3.0 // indirect
