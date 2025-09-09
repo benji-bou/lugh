@@ -25,7 +25,7 @@ require (
 	github.com/zricethezav/gitleaks/v8 v8.28.0
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394
 	google.golang.org/grpc v1.75.0
-	google.golang.org/protobuf v1.36.8
+	google.golang.org/protobuf v1.36.9
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )
