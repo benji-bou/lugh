@@ -516,6 +516,8 @@ github.com/samber/slog-echo v1.16.1 h1:5Q5IUROkFqKcu/qJM/13AP1d3gd1RS+Q/4EvKQU1f
 github.com/samber/slog-echo v1.16.1/go.mod h1:f+B3WR06saRXcaGRZ/I/UPCECDPqTUqadRIf7TmyRhI=
 github.com/samber/slog-echo v1.17.1 h1:ItGQGNf4jz8UIMRK7DVwp/HVr2q3EM52DkaIWGpmYrY=
 github.com/samber/slog-echo v1.17.1/go.mod h1:4diugqPTk6iQdL7gZFJIyf6zGMLVMaGnCmNm+DBSMRU=
+github.com/samber/slog-echo v1.17.2 h1:/d1D2ZiJsaqaeyz3Yk9olCeFFpi4EIJZtnoMp5zt9fs=
+github.com/samber/slog-echo v1.17.2/go.mod h1:4diugqPTk6iQdL7gZFJIyf6zGMLVMaGnCmNm+DBSMRU=
 github.com/sashabaranov/go-openai v1.38.0 h1:hNN5uolKwdbpiqOn7l+Z2alch/0n0rSFyg4n+GZxR5k=
 github.com/sashabaranov/go-openai v1.38.0/go.mod h1:lj5b/K+zjTSFxVLijLSTDZuP7adOgerWeFyZLUhAKRg=
 github.com/sergi/go-diff v1.3.1 h1:xkr+Oxo4BOQKmkn/B9eMK0g5Kg/983T9DqqPHwYqD+8=
