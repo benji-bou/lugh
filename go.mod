@@ -18,7 +18,7 @@ require (
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/projectdiscovery/katana v1.2.2
-	github.com/samber/slog-echo v1.17.2
+	github.com/samber/slog-echo v1.18.0
 	github.com/swaggest/jsonschema-go v0.3.78
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/urfave/cli/v3 v3.5.0
