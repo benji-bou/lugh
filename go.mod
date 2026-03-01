@@ -19,7 +19,7 @@ require (
 	github.com/samber/slog-echo v1.21.0
 	github.com/swaggest/jsonschema-go v0.3.79
 	github.com/urfave/cli/v2 v2.27.7
-	github.com/urfave/cli/v3 v3.6.2
+	github.com/urfave/cli/v3 v3.7.0
 	github.com/zricethezav/gitleaks/v8 v8.30.0
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b
 	google.golang.org/grpc v1.79.1
