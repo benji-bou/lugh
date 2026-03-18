@@ -22,7 +22,7 @@ require (
 	github.com/urfave/cli/v3 v3.7.0
 	github.com/zricethezav/gitleaks/v8 v8.30.1
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b
-	google.golang.org/grpc v1.79.2
+	google.golang.org/grpc v1.79.3
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
