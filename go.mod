@@ -12,7 +12,7 @@ require (
 	github.com/google/martian/v3 v3.3.3
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-hclog v1.6.3
-	github.com/hashicorp/go-plugin v1.7.0
+	github.com/hashicorp/go-plugin v1.8.0
 	github.com/labstack/echo/v4 v4.15.1
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/projectdiscovery/katana v1.5.0
