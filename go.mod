@@ -16,7 +16,7 @@ require (
 	github.com/labstack/echo/v4 v4.15.1
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/projectdiscovery/katana v1.5.0
-	github.com/samber/slog-echo v1.21.0
+	github.com/samber/slog-echo v1.22.0
 	github.com/swaggest/jsonschema-go v0.3.79
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/urfave/cli/v3 v3.8.0
@@ -98,6 +98,7 @@ require (
 	github.com/kataras/jwt v0.1.14 // indirect
 	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
+	github.com/labstack/echo/v5 v5.1.0 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
 	github.com/logrusorgru/aurora/v4 v4.0.0 // indirect
@@ -152,7 +153,7 @@ require (
 	github.com/sagikazarmark/locafero v0.7.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d // indirect
-	github.com/samber/lo v1.52.0 // indirect
+	github.com/samber/lo v1.53.0 // indirect
 	github.com/sashabaranov/go-openai v1.38.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82 // indirect
@@ -197,10 +198,10 @@ require (
 	go.etcd.io/bbolt v1.4.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.60.0 // indirect
-	go.opentelemetry.io/otel v1.39.0 // indirect
+	go.opentelemetry.io/otel v1.43.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.33.0 // indirect
-	go.opentelemetry.io/otel/metric v1.39.0 // indirect
-	go.opentelemetry.io/otel/trace v1.39.0 // indirect
+	go.opentelemetry.io/otel/metric v1.43.0 // indirect
+	go.opentelemetry.io/otel/trace v1.43.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
