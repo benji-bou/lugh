@@ -15,13 +15,13 @@ require (
 	github.com/hashicorp/go-plugin v1.8.0
 	github.com/labstack/echo/v4 v4.15.2
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/projectdiscovery/katana v1.5.0
+	github.com/projectdiscovery/katana v1.6.0
 	github.com/samber/slog-echo v1.22.0
 	github.com/swaggest/jsonschema-go v0.3.79
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/urfave/cli/v3 v3.8.0
 	github.com/zricethezav/gitleaks/v8 v8.30.1
-	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b
+	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa
 	google.golang.org/grpc v1.80.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v2 v2.4.0
@@ -38,6 +38,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Mzack9999/gcache v0.0.0-20230410081825-519e28eab057 // indirect
 	github.com/Mzack9999/go-http-digest-auth-client v0.6.1-0.20220414142836-eb8883508809 // indirect
+	github.com/Mzack9999/jsluice v0.0.0-20260306161058-30114a312f98 // indirect
 	github.com/PuerkitoBio/goquery v1.11.0 // indirect
 	github.com/STARRY-S/zip v0.2.3 // indirect
 	github.com/akrylysov/pogreb v0.10.2 // indirect
@@ -71,7 +72,7 @@ require (
 	github.com/fatih/semgroup v1.3.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
-	github.com/gaissmai/bart v0.26.0 // indirect
+	github.com/gaissmai/bart v0.26.1 // indirect
 	github.com/gitleaks/go-gitdiff v0.9.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -124,6 +125,7 @@ require (
 	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/nwaples/rardecode v1.1.3 // indirect
 	github.com/nwaples/rardecode/v2 v2.2.2 // indirect
+	github.com/odvcencio/gotreesitter v0.6.1-0.20260306002001-fbe5983c6f41 // indirect
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
@@ -131,20 +133,20 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.23 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/projectdiscovery/blackrock v0.0.1 // indirect
-	github.com/projectdiscovery/dsl v0.8.5 // indirect
-	github.com/projectdiscovery/fastdialer v0.5.2 // indirect
+	github.com/projectdiscovery/dsl v0.8.16 // indirect
+	github.com/projectdiscovery/fastdialer v0.5.6 // indirect
 	github.com/projectdiscovery/goflags v0.1.74 // indirect
-	github.com/projectdiscovery/gologger v1.1.67 // indirect
+	github.com/projectdiscovery/gologger v1.1.68 // indirect
 	github.com/projectdiscovery/gostruct v0.0.2 // indirect
-	github.com/projectdiscovery/hmap v0.0.99 // indirect
+	github.com/projectdiscovery/hmap v0.0.100 // indirect
 	github.com/projectdiscovery/mapcidr v1.1.97 // indirect
-	github.com/projectdiscovery/networkpolicy v0.1.33 // indirect
-	github.com/projectdiscovery/ratelimit v0.0.82 // indirect
-	github.com/projectdiscovery/retryabledns v1.0.112 // indirect
-	github.com/projectdiscovery/retryablehttp-go v1.3.2 // indirect
-	github.com/projectdiscovery/utils v0.8.0 // indirect
-	github.com/projectdiscovery/wappalyzergo v0.2.62 // indirect
-	github.com/refraction-networking/utls v1.7.1 // indirect
+	github.com/projectdiscovery/networkpolicy v0.1.37 // indirect
+	github.com/projectdiscovery/ratelimit v0.0.86 // indirect
+	github.com/projectdiscovery/retryabledns v1.0.114 // indirect
+	github.com/projectdiscovery/retryablehttp-go v1.3.9 // indirect
+	github.com/projectdiscovery/utils v0.10.1 // indirect
+	github.com/projectdiscovery/wappalyzergo v0.2.78 // indirect
+	github.com/refraction-networking/utls v1.8.2 // indirect
 	github.com/remeh/sizedwaitgroup v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rs/xid v1.6.0 // indirect
@@ -184,7 +186,7 @@ require (
 	github.com/vulncheck-oss/go-exploit v1.51.0 // indirect
 	github.com/wasilibs/go-re2 v1.10.0 // indirect
 	github.com/wasilibs/wazero-helpers v0.0.0-20250123031827-cd30c44769bb // indirect
-	github.com/weppos/publicsuffix-go v0.40.3-0.20250408071509-6074bbe7fd39 // indirect
+	github.com/weppos/publicsuffix-go v0.50.3-0.20260104170930-90713dec78f2 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
