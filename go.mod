@@ -15,7 +15,7 @@ require (
 	github.com/hashicorp/go-plugin v1.8.0
 	github.com/labstack/echo/v4 v4.15.2
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/projectdiscovery/katana v1.6.0
+	github.com/projectdiscovery/katana v1.6.1
 	github.com/samber/slog-echo v1.23.0
 	github.com/swaggest/jsonschema-go v0.3.79
 	github.com/urfave/cli/v2 v2.27.7
@@ -133,7 +133,7 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.23 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/projectdiscovery/blackrock v0.0.1 // indirect
-	github.com/projectdiscovery/dsl v0.8.16 // indirect
+	github.com/projectdiscovery/dsl v0.8.17 // indirect
 	github.com/projectdiscovery/fastdialer v0.5.6 // indirect
 	github.com/projectdiscovery/goflags v0.1.74 // indirect
 	github.com/projectdiscovery/gologger v1.1.68 // indirect
@@ -143,9 +143,9 @@ require (
 	github.com/projectdiscovery/networkpolicy v0.1.37 // indirect
 	github.com/projectdiscovery/ratelimit v0.0.86 // indirect
 	github.com/projectdiscovery/retryabledns v1.0.114 // indirect
-	github.com/projectdiscovery/retryablehttp-go v1.3.9 // indirect
+	github.com/projectdiscovery/retryablehttp-go v1.3.10 // indirect
 	github.com/projectdiscovery/utils v0.10.1 // indirect
-	github.com/projectdiscovery/wappalyzergo v0.2.78 // indirect
+	github.com/projectdiscovery/wappalyzergo v0.2.79 // indirect
 	github.com/refraction-networking/utls v1.8.2 // indirect
 	github.com/remeh/sizedwaitgroup v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
@@ -163,7 +163,7 @@ require (
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
-	github.com/spf13/cast v1.7.1 // indirect
+	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/spf13/viper v1.19.0 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
