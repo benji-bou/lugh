@@ -17,6 +17,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/projectdiscovery/katana v1.6.1
 	github.com/samber/slog-echo v1.23.0
+	github.com/samber/slog-echo/v2 v2.0.0
 	github.com/swaggest/jsonschema-go v0.3.79
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/urfave/cli/v3 v3.9.0
@@ -99,7 +100,7 @@ require (
 	github.com/kataras/jwt v0.1.14 // indirect
 	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
-	github.com/labstack/echo/v5 v5.1.0 // indirect
+	github.com/labstack/echo/v5 v5.1.1 // indirect
 	github.com/labstack/gommon v0.5.0 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
 	github.com/logrusorgru/aurora/v4 v4.0.0 // indirect
