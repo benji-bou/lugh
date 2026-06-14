@@ -13,7 +13,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-plugin v1.8.0
-	github.com/labstack/echo/v4 v4.15.2
+	github.com/labstack/echo/v4 v4.15.3
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/projectdiscovery/katana v1.6.1
 	github.com/samber/slog-echo v1.23.0
