@@ -356,6 +356,7 @@ github.com/labstack/echo/v4 v4.15.4 h1:DL45vVYa+BWE+XuW+zZNd9H0YEdZ80UAWJGcTVW4E
 github.com/labstack/echo/v4 v4.15.4/go.mod h1:CuMetKIRwsuO/qlAgMq+KTAalwGoB/h4tC+yPdrTj1g=
 github.com/labstack/echo/v5 v5.1.0 h1:MvIRydoN+p9cx/zq8Lff6YXqUW2ZaEsOMISzEGSMrBI=
 github.com/labstack/echo/v5 v5.1.0/go.mod h1:SyvlSdObGjRXeQfCCXW/sybkZdOOQZBmpKF0bvALaeo=
+github.com/labstack/echo/v5 v5.1.1/go.mod h1:SyvlSdObGjRXeQfCCXW/sybkZdOOQZBmpKF0bvALaeo=
 github.com/labstack/gommon v0.4.2 h1:F8qTUNXgG1+6WQmqoUWnz8WiEU60mXVVw0P4ht1WRA0=
 github.com/labstack/gommon v0.4.2/go.mod h1:QlUFxVM+SNXhDL/Z7YhocGIBYOiwB0mXm1+1bAPHPyU=
 github.com/labstack/gommon v0.5.0 h1:6VSQ2NOzsnEJ5W6+84E0RbcaDDmgB6NIAzWCczTEe6c=
@@ -689,6 +690,7 @@ github.com/samber/slog-echo v1.22.0 h1:ysjUPb1SdFwT4xxU114Uvwg/6tokx/u2gApWYl3zO
 github.com/samber/slog-echo v1.22.0/go.mod h1:q5AwPkcJ4DLfTU/sZhIAyy2y6rh7Fjzdkz3qqM1bZW4=
 github.com/samber/slog-echo v1.23.0 h1:jFzK9t9hLvEjic2tfIkgXt2r22Zz2UYaYrUyM/S0pks=
 github.com/samber/slog-echo v1.23.0/go.mod h1:caG3zeXgrPRlGKaPVqyWG1MEc6nwrmtDjoLN/mc0PrM=
+github.com/samber/slog-echo/v2 v2.0.0/go.mod h1:62kVIOBLr3qx9dIcUMlS+zu7e5YN3aKX4LzTdQUnDFs=
 github.com/sashabaranov/go-openai v1.38.0 h1:hNN5uolKwdbpiqOn7l+Z2alch/0n0rSFyg4n+GZxR5k=
 github.com/sashabaranov/go-openai v1.38.0/go.mod h1:lj5b/K+zjTSFxVLijLSTDZuP7adOgerWeFyZLUhAKRg=
 github.com/sergi/go-diff v1.3.1 h1:xkr+Oxo4BOQKmkn/B9eMK0g5Kg/983T9DqqPHwYqD+8=
