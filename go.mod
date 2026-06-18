@@ -13,7 +13,8 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-plugin v1.8.0
-	github.com/labstack/echo/v4 v4.15.4
+	github.com/labstack/echo/v4 v4.13.3
+	github.com/labstack/echo/v5 v5.2.1
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/projectdiscovery/katana v1.6.1
 	github.com/samber/slog-echo v1.23.0
@@ -99,7 +100,6 @@ require (
 	github.com/kataras/jwt v0.1.14 // indirect
 	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
-	github.com/labstack/echo/v5 v5.1.0 // indirect
 	github.com/labstack/gommon v0.5.0 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
 	github.com/logrusorgru/aurora/v4 v4.0.0 // indirect
