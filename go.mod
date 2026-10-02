@@ -1,6 +1,6 @@
 module github.com/benji-bou/lugh
 
-go 1.26
+go 1.27.1
 
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
