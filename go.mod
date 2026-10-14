@@ -133,7 +133,7 @@ require (
 	github.com/kataras/jwt v0.1.14 // indirect
 	github.com/klauspost/compress v1.18.5 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
-	github.com/labstack/echo/v5 v5.1.0 // indirect
+	github.com/labstack/echo/v5 v5.2.0 // indirect
 	github.com/labstack/gommon v0.5.0 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
 	github.com/logrusorgru/aurora/v4 v4.0.0 // indirect
